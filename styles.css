@@ -1,0 +1,23 @@
+html {
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+body {
+    display: flex;
+    margin: 0px;
+    justify-content: center;
+    align-items: center;
+}
+
+#grid {
+    background: gray;
+    width: 480px;
+    height: 480px;
+}
+
+.pixel {
+    background: blue;
+}
