@@ -12,12 +12,23 @@ body {
     align-items: center;
 }
 
-#grid {
-    background: gray;
-    width: 480px;
-    height: 480px;
+.flex,
+.hflex,
+.vflex {
+    display: flex;
+    align-items: center;
+    gap: 32px;
+}
+
+.vflex {
+    flex-direction: column;
 }
 
 .pixel {
     background: blue;
+}
+
+#main-container {
+    background: gray;
+    padding: 32px;
 }
