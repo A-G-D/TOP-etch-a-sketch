@@ -13,7 +13,8 @@
         <div class="header hflex">
             <button id="clear-button">Clear</button>
             <button id="reset-button">Reset</button>
-            <input type="number" min="16" max="128" value="64"></input>
+            <input id="brush-opacity-range" type="range" name="Brush Opacity" min="0" max="1" step="0.01" value="0.1"></input>
+            <input id="brush-color-picker" type="color" name="Brush Color" value="#000000"></input>
         </div>
         <div class="body vflex">
             <!-- Grid Canvas goes here -->
@@ -27,9 +28,9 @@
             <p class="modalbox-title">Reset Canvas</p>
             <div class="modalbox-content hflex">
                 <label class="rows-label">Rows</label>
-                <input class="rows-input" type="number" min="16" max="128" value="64"></input>
+                <input class="rows-input" type="number" min="16" max="128"></input>
                 <label class="columns-label">Columns</label>
-                <input class="columns-input" type="number" min="16" max="128" value="64"></input>
+                <input class="columns-input" type="number" min="16" max="128"></input>
             </div>
             <button class="reset-button">Reset</button>
         </div>

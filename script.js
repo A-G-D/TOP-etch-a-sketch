@@ -1,12 +1,45 @@
+/*
+*   TO-DO: Fix transparent layers color mixing
+
+    Layer1: 100 100 100 1
+    Layer2: 00 00 00 0.9
+    Result: 10 10 10 1  - (100 + 0)(1 - 0.9)
+
+    Layer1: 100 100 100 1
+    Layer2: 100 100 100 0.9
+    Result: 20 20 20 1  - (100 + 0)(1 - 0.9)
+
+    Layer1: 100 100 100 1
+    Layer2: 100 100 100 0.9
+    Result: 95 95 95 1  - (1*100 + 0.9*100)/2
+
+    Layer1: 100 100 100 1
+    Layer2: 00 00 00 0
+    Result: 100 100 100 1  - (1*100 + 0*0)/(1 + 0)    [X]
+
+    Layer1: 100 100 100 1
+    Layer2: 50 50 50 0.9
+    Result: 95 95 95 1  - (1*100 + 0.9*100)/2
+
+    Layer1: 100 100 100 1
+    Layer2: 50 50 50 0.5
+    Layer3: 00 00 00 0.9
+    Result: 
+
+    Formula: (L1*L1Opacity + ... + LN*LNOpacity)/(L1Opacity + ... + LNOpacity)
+*/
+
 const DEFAULT_CANVAS_ROW_COUNT          = 64;
 const DEFAULT_CANVAS_COLUMN_COUNT       = 64;
 
 const GRID_CANVAS_WIDTH                 = 480;
 const GRID_CANVAS_HEIGHT                = 480;
 
+const COLOR_NULL                        = [0x0, 0x0, 0x0, 0x0];
 const PIXEL_HIGHLIGHT_DURATION          = 200;
-const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0, 0xFF];
-const STROKE_COLOR                      = [-0xFF, -0xFF, -0xFF, 0x0];
+const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
+const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
+const DEFAULT_BRUSH_OPACITY             = 0.1;
 
 const CANVAS_SHADER_FPS                 = 32;
 
@@ -184,6 +217,7 @@ class GridPixel extends HTMLElement {
         let g = 0x0;
         let b = 0x0;
         let a = 0x0;
+        let opacitySum = 0;
 
         this.traverseLayers((layer) => {
             const opacity = layer.alpha/0xFF;
@@ -192,13 +226,14 @@ class GridPixel extends HTMLElement {
             g += opacity*layer.green;
             b += opacity*layer.blue;
             a = Math.max(a, layer.alpha);
+            opacitySum += opacity;
 
             return a === 0xFF;
         }, true);
 
-        r = clampColor(r);
-        g = clampColor(g);
-        b = clampColor(b);
+        r = clampColor(r/opacitySum);
+        g = clampColor(g/opacitySum);
+        b = clampColor(b/opacitySum);
         a = clampColor(a);
 
         this.#colorRed = r;
@@ -341,13 +376,12 @@ class GridPixel extends HTMLElement {
 const mainContainer = document.querySelector("#main-container div.body");
 const canvasClearButton = document.querySelector("#clear-button");
 const canvasResetButton = document.querySelector("#reset-button");
+const brushOpacityRange = document.querySelector("#brush-opacity-range");
+const brushColorPicker = document.querySelector("#brush-color-picker");
 const rowCountInput = document.querySelector(".rows-input");
 const columnCountInput = document.querySelector(".columns-input");
 const modalbox = document.querySelector(".modal");
 const modalboxResetButton = document.querySelector(".modalbox .reset-button");
-
-const gridContainerWidth = mainContainer.clientWidth;
-const gridContainerHeight = mainContainer.clientHeight;
 
 window.customElements.define('grid-canvas', GridCanvas);
 window.customElements.define('grid-pixel', GridPixel);
@@ -355,14 +389,23 @@ window.customElements.define('grid-pixel', GridPixel);
 let time = 0;
 let gridCanvas;
 let intervalId;
+let brushColor = DEFAULT_BRUSH_COLOR;
+let brushOpacity = DEFAULT_BRUSH_OPACITY;
 
-gridCanvas = createGridCanvas();
-intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+rowCountInput.value = DEFAULT_CANVAS_ROW_COUNT;
+columnCountInput.value = DEFAULT_CANVAS_COLUMN_COUNT;
+brushColorPicker.value = colorToHexStr(...DEFAULT_BRUSH_COLOR);
+brushOpacityRange.value = DEFAULT_BRUSH_OPACITY;
 
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
 canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
 canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
 modalboxResetButton.addEventListener('click', onModalboxResetButtonClick);
+brushColorPicker.addEventListener('change', onBrushColorPickerChange);
+brushOpacityRange.addEventListener('change', onBrushOpacityRangeChange);
+
+gridCanvas = createGridCanvas();
+intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 
 
 // Helper functions
@@ -377,6 +420,25 @@ function clamp(value, min, max) {
 
 function clampColor(value) {
     return clamp(value, 0, 0xFF);
+}
+
+function colorToHexStr(r, g, b) {
+    r = r.toString(16);
+    if (r.length == 1) r = `0${r}`;
+    g = g.toString(16);
+    if (g.length == 1) g = `0${g}`;
+    b = b.toString(16);
+    if (b.length == 1) b = `0${b}`;
+    return `#${r}${g}${b}`;
+}
+
+function hexStrToColor(hexcolor) {
+    const rgbHex = hexcolor.substr(1).match(/.{1,2}/g);
+    return [
+        parseInt(rgbHex[0], 16),
+        parseInt(rgbHex[1], 16),
+        parseInt(rgbHex[2], 16)
+    ];
 }
 
 function sleep(ms) {
@@ -418,33 +480,37 @@ function initPeriodicActions(fps) {
 
 // Event handlers & Callback functions
 
+function onPixelLayersInit(pixel) {
+    pixel.pushLayer();
+    pixel.color = COLOR_NULL;
+    // pixel.color = [...brushColor, brushOpacity*0xFF];
+    pixel.pushLayer();
+    pixel.color = COLOR_NULL;
+}
+
 async function onMouseHoverStart(e) {
     let prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
-    this.alpha = 0xFF;
+    // this.alpha = 0xFF;
+    this.color = [...brushColor, 0xFF];
     this.switchLayer(prevIndex);
 
     await sleep(PIXEL_HIGHLIGHT_DURATION);
 
     prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
-    this.alpha = 0x0;
+    this.color = [0x0, 0x0, 0x0, 0x0];
+    // this.alpha = 0x0;
     this.switchLayer(prevIndex);
 }
 
 function onMouseHoverEnd(e) {
     const prevIndex = this.switchLayer(LAYER_INDEX_USERINPUT);
-    this.alpha += 0xFF/10;
+    this.color = [...brushColor, this.alpha + brushOpacity*0xFF];
     this.switchLayer(prevIndex);
 }
 
 function onCanvasClearButtonClick(e) {
     gridCanvas.reset();
-    gridCanvas.traversePixels((pixel) => {
-        pixel.pushLayer();
-        pixel.color = STROKE_COLOR;
-        pixel.pushLayer();
-        pixel.color = PIXEL_HIGHLIGHT_COLOR;
-        pixel.alpha = 0x0;
-    });
+    gridCanvas.traversePixels(pixel => {onPixelLayersInit(pixel);});
 }
 
 function onCanvasResetButtonClick(e) {
@@ -456,15 +522,29 @@ function onModalboxResetButtonClick(e) {
     gridCanvas = createGridCanvas();
 }
 
+function onBrushColorPickerChange(e) {
+    console.log(this.value);
+    brushColor = hexStrToColor(this.value);
+}
+
+function onBrushOpacityRangeChange(e) {
+    console.log(this.value);
+    brushOpacity = this.value;
+}
+
 function onWindowClick(e) {
     if (e.target == modalbox)
         modalbox.style.display = 'none';
 }
 
 function onPeriod(pixel, time) {
-    const x = pixel.columnIndex/pixel.gridCanvas.columnCount;
-    const y = pixel.rowIndex/pixel.gridCanvas.rowCount;
+    const canvas = pixel.gridCanvas;
+    let x = pixel.columnIndex/canvas.columnCount;
+    let y = pixel.rowIndex/canvas.rowCount;
+
+    x *= (canvas.offsetWidth/canvas.offsetHeight);
     const color = onShaderPeriod(x, y, time);
+
     const prevIndex = pixel.switchLayer(LAYER_INDEX_BACKGROUND);
     pixel.color = color;
     pixel.switchLayer(prevIndex);
@@ -473,12 +553,8 @@ function onPeriod(pixel, time) {
 function onGridPixelInit(pixel) {
     pixel.addEventListener('mouseover', onMouseHoverStart);
     pixel.addEventListener('mouseout', onMouseHoverEnd);
-
-    pixel.pushLayer();
-    pixel.color = STROKE_COLOR;
-    pixel.pushLayer();
-    pixel.color = PIXEL_HIGHLIGHT_COLOR;
-    pixel.alpha = 0x0;
+    
+    onPixelLayersInit(pixel);
 }
 
 function onDocumentVisibilityChange() {
