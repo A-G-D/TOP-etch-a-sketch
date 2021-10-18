@@ -11,12 +11,27 @@
 <body>
     <div id="main-container" class="vflex">
         <div class="header hflex">
+            <button id="clear-button">Clear</button>
             <button id="reset-button">Reset</button>
+            <input type="number" min="16" max="128" value="64"></input>
         </div>
         <div class="body vflex">
+            <!-- Grid Canvas goes here -->
         </div>
         <div class="footer hflex">
             <p>Credits goes to the original author of the Shader pattern. <a href="https://www.shadertoy.com/view/NdKXzw">(Source)</a></p>
+        </div>
+    </div>
+    <div class="modal">
+        <div class="modalbox vflex">
+            <p class="modalbox-title">Reset Canvas</p>
+            <div class="modalbox-content hflex">
+                <label class="rows-label">Rows</label>
+                <input class="rows-input" type="number" min="16" max="128" value="64"></input>
+                <label class="columns-label">Columns</label>
+                <input class="columns-input" type="number" min="16" max="128" value="64"></input>
+            </div>
+            <button class="reset-button">Reset</button>
         </div>
     </div>
 </body>
