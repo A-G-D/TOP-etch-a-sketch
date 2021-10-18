@@ -349,15 +349,15 @@ const modalboxResetButton = document.querySelector(".modalbox .reset-button");
 const gridContainerWidth = mainContainer.clientWidth;
 const gridContainerHeight = mainContainer.clientHeight;
 
+window.customElements.define('grid-canvas', GridCanvas);
+window.customElements.define('grid-pixel', GridPixel);
+
 let time = 0;
 let gridCanvas;
 let intervalId;
 
 gridCanvas = createGridCanvas();
 intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
-
-window.customElements.define('grid-canvas', GridCanvas);
-window.customElements.define('grid-pixel', GridPixel);
 
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
 canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
