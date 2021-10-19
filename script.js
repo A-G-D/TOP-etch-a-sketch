@@ -350,18 +350,22 @@ class GridPixel extends HTMLElement {
 const mainContainer = document.querySelector("#main-container .canvas-container");
 const canvasClearButton = document.querySelector("#clear-button");
 const canvasResetButton = document.querySelector("#reset-button");
+const canvasSaveButton = document.querySelector("#save-button");
+const playPauseButton = document.querySelector("#play-pause-button");
+const pointerVisibilitySwitch = document.querySelector("#pointer-visibility-switch");
 const brushOpacityRange = document.querySelector("#brush-opacity-range");
 const brushColorPicker = document.querySelector("#brush-color-picker");
 const brushOpacityDisplay = document.querySelector("#brush-opacity-data");
 const brushColorDisplay = document.querySelector("#brush-color-data");
 const rowCountInput = document.querySelector(".rows-input");
 const columnCountInput = document.querySelector(".columns-input");
-const modalbox = document.querySelector(".modal");
+const modalForm = document.querySelector(".modal");
 const modalboxResetButton = document.querySelector(".modalbox .reset-button");
 
 window.customElements.define('grid-canvas', GridCanvas);
 window.customElements.define('grid-pixel', GridPixel);
 
+let isPeriodicActionsPaused = false;
 let time = 0;
 let gridCanvas;
 let intervalId;
@@ -383,6 +387,9 @@ window.addEventListener('click', onWindowClick);
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
 canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
 canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
+canvasSaveButton.addEventListener('click', onCanvasSaveButtonClick);
+playPauseButton.addEventListener('click', onPlayPauseButtonClick);
+pointerVisibilitySwitch.addEventListener('change', onPointerVisibilitySwitchChange);
 modalboxResetButton.addEventListener('click', onModalboxResetButtonClick);
 brushColorPicker.addEventListener('change', onBrushColorPickerChange);
 brushOpacityRange.addEventListener('change', onBrushOpacityRangeChange);
@@ -390,6 +397,7 @@ rowCountInput.addEventListener('change', onRowCountInputChange);
 columnCountInput.addEventListener('change', onColumnCountInputChange);
 
 gridCanvas = createGridCanvas();
+onPointerVisibilitySwitchChange();
 intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 
 
@@ -463,10 +471,12 @@ function createGridCanvas() {
 }
 
 function initPeriodicActions(fps) {
-    gridCanvas.traversePixels(onPeriod, time);
+    gridCanvas.traversePixels(onPixelPeriod, time);
     return setInterval(() => {
-        time += 1/fps;
-        gridCanvas.traversePixels(onPeriod, time);
+        if (!isPeriodicActionsPaused) {
+            time += 1/fps;
+            gridCanvas.traversePixels(onPixelPeriod, time);
+        }
     }, 1000/fps);
 }
 
@@ -488,9 +498,10 @@ function onMouseHoverStart(e) {
 
 async function onMouseHoverEnd(e) {
     let prevIndex = this.switchLayer(LAYER_INDEX_BRUSH);
-    if (!colorEquals(this.color, brushColor))
-        this.alpha = 0; 
-    this.color = [...brushColor, this.alpha + brushOpacity];
+    if (colorEquals(this.color, brushColor))
+        this.color = [...brushColor, this.alpha + brushOpacity];
+    else
+        this.color = [...brushColor, brushOpacity];
     this.switchLayer(prevIndex);
 
     await sleep(PIXEL_HIGHLIGHT_DURATION);
@@ -506,12 +517,28 @@ function onCanvasClearButtonClick(e) {
 }
 
 function onCanvasResetButtonClick(e) {
-    modalbox.style.display = 'flex';
+    modalForm.style.display = 'flex';
+}
+
+function onCanvasSaveButtonClick(e) {
+    alert("This Functionality is NYI...");
+}
+
+function onPlayPauseButtonClick(e) {
+    isPeriodicActionsPaused = !isPeriodicActionsPaused;
+}
+
+function onPointerVisibilitySwitchChange(e) {
+    if (pointerVisibilitySwitch.checked)
+        gridCanvas.classList.remove('hide-cursor');
+    else
+        gridCanvas.classList.add('hide-cursor');
 }
 
 function onModalboxResetButtonClick(e) {
-    modalbox.style.display = 'none';
+    modalForm.style.display = 'none';
     gridCanvas = createGridCanvas();
+    gridCanvas.traversePixels(onPixelPeriod, time);
 }
 
 function onBrushColorPickerChange(e) {
@@ -535,8 +562,8 @@ function onColumnCountInputChange(e) {
 }
 
 function onWindowClick(e) {
-    if (e.target == modalbox)
-        modalbox.style.display = 'none';
+    if (e.target == modalForm)
+        modalForm.style.display = 'none';
 }
 
 function onGridPixelInit(pixel) {
@@ -553,7 +580,7 @@ function onDocumentVisibilityChange() {
         intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 }
 
-function onPeriod(pixel, time) {
+function onPixelPeriod(pixel, time) {
     const canvas = pixel.gridCanvas;
     const aspectRatio = canvas.offsetWidth/canvas.offsetHeight;
     const x = pixel.columnIndex/canvas.columnCount;

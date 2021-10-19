@@ -13,22 +13,40 @@
 <body>
     <div id="main-container" class="vflex">
         <div class="header hflex">
-            <div class="canvas-controls vflex">
-                <label class="bold">Canvas Controls</label>
-                <button id="reset-button">Reset</button>
-                <button id="clear-button">Clear</button>
-            </div>
+            <div class="toolbar hflex">
+                <div class="canvas-controls vflex">
+                    <label class="bold">Canvas Controls</label>
+                    <button id="reset-button">Reset</button>
+                    <button id="clear-button">Clear</button>
+                    <button id="save-button">Save</button>
+                    <button id="play-pause-button">Play/Pause</button>
+                </div>
 
-            <div class="brush-controls vflex">
-                <label class="bold">Brush Controls</label>
-                <div class="hflex reversed">
-                    <div class="data vflex">
-                        <input id="brush-opacity-data" readonly></input>
-                        <input id="brush-color-data" readonly></input>
+                <div class="options vflex">
+                    <label class="bold">Options</label>
+                    <div class="hflex">
+                        <input id="pointer-visibility-switch" type="checkbox">
+                        <p>Show mouse pointer on canvas</p>
                     </div>
-                    <div class="controls vflex">
-                        <input id="brush-opacity-range" type="range" name="Brush Opacity"></input>
-                        <input id="brush-color-picker" type="color" name="Brush Color"></input>
+                </div>
+
+                <div class="brush-controls vflex">
+                    <label class="bold">Brush Controls</label>
+                    <div class="hflex reversed">
+                        <div class="data vflex">
+                            <input id="brush-opacity-data" readonly></input>
+                            <input id="brush-color-data" readonly></input>
+                        </div>
+                        <div class="controls vflex">
+                            <div class="tooltip">
+                                <input id="brush-opacity-range" type="range" name="Brush Opacity">
+                                <span class="tooltiptext">Brush Opacity (Value Range: 0.00 - 1.00)</span>
+                            </div>
+                            <div class="tooltip">
+                                <input id="brush-color-picker" type="color" name="Brush Color">
+                                <span class="tooltiptext">Brush Color</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -38,8 +56,12 @@
             <!-- Grid Canvas goes here -->
         </div>
 
-        <div class="footer hflex">
+        <div class="footnotes hflex">
             <p>Credits to the original author of the Shader pattern. <a href="https://www.shadertoy.com/view/NdKXzw">(Source)</a></p>
+        </div>
+
+        <div class="footer hflex">
+            <p>Copyright © 2021 A-G-D</p>
         </div>
     </div>
 

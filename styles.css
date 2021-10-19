@@ -54,25 +54,53 @@ p {
     justify-content: flex-end;
 }
 
-.pixel {
+/* .pixel {
     cursor: none;
+} */
+
+.toolbar {
+    background-color: #606060;
+    border: 1px #404040 solid;
+    border-radius: 16px;
+    box-shadow: 0px 1px 4px 2px #404040;
+    align-self: stretch;
+    justify-content: space-between;
+    align-items: stretch;
+    padding: 16px;
+    gap: 32px;
 }
 
 .canvas-container {
-    border: 2px #404040 solid;
-    box-shadow: 0px 2px 10px 12px #404040;
+    box-shadow: 0px 2px 16px 16px #202020;
+}
+
+.footnotes,
+.footer {
+    padding: 0px 32px;
+    align-self: stretch;
+    justify-content: center;
 }
 
 .footer {
-    padding: 0px;
+    font-weight: bold;
+    background-color: #383838;
+    padding: 24px 32px;
 }
 
 .canvas-controls {
     align-items: flex-start;
 }
 
+.canvas-controls button {
+    width: 96px;
+}
+
+.options {
+    justify-content: flex-start;
+}
+
 .brush-controls {
-    justify-content: flex-end;
+    justify-content: flex-start;
     /* flex: 0 1 auto; */
 }
 
@@ -84,7 +112,7 @@ p {
 
 .brush-controls .controls {
     align-items: flex-start;
-    flex: 0 1 auto;
+    /* flex: 0 1 auto; */
 }
 
 .modal {
@@ -143,27 +171,50 @@ p {
     padding: 8px 24px;
 }
 
+.tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+/* Tooltip text */
+.tooltip .tooltiptext {
+    visibility: hidden;
+    width: 120px;
+    background-color: #20202080;
+    color: white;
+    text-align: center;
+    padding: 5px 0;
+    border-radius: 6px;
+
+    /* Position the tooltip text - see examples below! */
+    position: absolute;
+    z-index: 1;
+}
+
+/* Show the tooltip text when you mouse over the tooltip container */
+.tooltip:hover .tooltiptext {
+    visibility: visible;
+}
+
 .bold {
     font-weight: bold;
+}
+
+.hide-cursor {
+    cursor: none;
 }
 
 /*  */
 
 #main-container {
     background: gray;
-    padding: 16px 32px;
+    padding: 0px;
     flex: 0 0 auto;
     gap: 32px;
 }
 
 #main-container .header {
-    background-color: #606060;
-    border: 1px #404040 solid;
-    border-radius: 16px;
-    box-shadow: 0px 1px 4px 2px #404040;
-    align-self: stretch;
-    justify-content: space-between;
-    padding: 16px;
+    padding: 32px;
 }
 
 #clear-button {
@@ -178,3 +229,11 @@ p {
 #brush-color-data {
     text-align: center;
 }
+
+/* #brush-opacity-range {
+    transform: scale(0.5, 0.5);
+}
+
+#brush-color-picker {
+    transform: scale(0.75, 0.75);
+} */
