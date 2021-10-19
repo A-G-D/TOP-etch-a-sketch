@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -8,32 +9,60 @@
     <script src="script.js" defer></script>
     <title>Etch-A-Sketch</title>
 </head>
+
 <body>
     <div id="main-container" class="vflex">
         <div class="header hflex">
-            <button id="clear-button">Clear</button>
-            <button id="reset-button">Reset</button>
-            <input id="brush-opacity-range" type="range" name="Brush Opacity" min="0" max="1" step="0.01" value="0.1"></input>
-            <input id="brush-color-picker" type="color" name="Brush Color" value="#000000"></input>
+            <div class="canvas-controls vflex">
+                <label class="bold">Canvas Controls</label>
+                <button id="reset-button">Reset</button>
+                <button id="clear-button">Clear</button>
+            </div>
+
+            <div class="brush-controls vflex">
+                <label class="bold">Brush Controls</label>
+                <div class="hflex reversed">
+                    <div class="data vflex">
+                        <input id="brush-opacity-data" readonly></input>
+                        <input id="brush-color-data" readonly></input>
+                    </div>
+                    <div class="controls vflex">
+                        <input id="brush-opacity-range" type="range" name="Brush Opacity"></input>
+                        <input id="brush-color-picker" type="color" name="Brush Color"></input>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="body vflex">
+
+        <div class="canvas-container vflex">
             <!-- Grid Canvas goes here -->
         </div>
+
         <div class="footer hflex">
-            <p>Credits goes to the original author of the Shader pattern. <a href="https://www.shadertoy.com/view/NdKXzw">(Source)</a></p>
+            <p>Credits to the original author of the Shader pattern. <a href="https://www.shadertoy.com/view/NdKXzw">(Source)</a></p>
         </div>
     </div>
+
     <div class="modal">
         <div class="modalbox vflex">
-            <p class="modalbox-title">Reset Canvas</p>
-            <div class="modalbox-content hflex">
-                <label class="rows-label">Rows</label>
-                <input class="rows-input" type="number" min="16" max="128"></input>
-                <label class="columns-label">Columns</label>
-                <input class="columns-input" type="number" min="16" max="128"></input>
+            <div class="header hflex">
+                <label class="title bold">Reset Canvas</label>
             </div>
-            <button class="reset-button">Reset</button>
+            <div class="body hflex">
+                <div class="left vflex">
+                    <label class="rows-label">Rows</label>
+                    <label class="columns-label">Columns</label>
+                </div>
+                <div class="right vflex">
+                    <input class="rows-input" type="number" min="16" max="128"></input>
+                    <input class="columns-input" type="number" min="16" max="128"></input>
+                </div>
+            </div>
+            <div class="footer hflex">
+                <button class="reset-button">Reset</button>
+            </div>
         </div>
     </div>
 </body>
+
 </html>
