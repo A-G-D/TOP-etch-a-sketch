@@ -1,5 +1,6 @@
 html {
     height: 100vh;
+    width: 100%;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -68,6 +69,7 @@ a {
 #main-container {
     background: gray;
     padding: 32px;
+    flex: 0 0 auto;
 }
 
 #clear-button {

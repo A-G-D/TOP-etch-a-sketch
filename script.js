@@ -1,41 +1,16 @@
-/*
-*   TO-DO: Fix transparent layers color mixing
-
-    Layer1: 100 100 100 1
-    Layer2: 00 00 00 0.9
-    Result: 10 10 10 1  - (100 + 0)(1 - 0.9)
-
-    Layer1: 100 100 100 1
-    Layer2: 100 100 100 0.9
-    Result: 20 20 20 1  - (100 + 0)(1 - 0.9)
-
-    Layer1: 100 100 100 1
-    Layer2: 100 100 100 0.9
-    Result: 95 95 95 1  - (1*100 + 0.9*100)/2
-
-    Layer1: 100 100 100 1
-    Layer2: 00 00 00 0
-    Result: 100 100 100 1  - (1*100 + 0*0)/(1 + 0)    [X]
-
-    Layer1: 100 100 100 1
-    Layer2: 50 50 50 0.9
-    Result: 95 95 95 1  - (1*100 + 0.9*100)/2
-
-    Layer1: 100 100 100 1
-    Layer2: 50 50 50 0.5
-    Layer3: 00 00 00 0.9
-    Result: 
-
-    Formula: (L1*L1Opacity + ... + LN*LNOpacity)/(L1Opacity + ... + LNOpacity)
-*/
+'use strict';
 
 const DEFAULT_CANVAS_ROW_COUNT          = 64;
 const DEFAULT_CANVAS_COLUMN_COUNT       = 64;
+const MIN_CANVAS_ROW_COUNT              = 16;
+const MIN_CANVAS_COLUMN_COUNT           = 16;
+const MAX_CANVAS_ROW_COUNT              = 128;
+const MAX_CANVAS_COLUMN_COUNT           = 128;
 
 const GRID_CANVAS_WIDTH                 = 480;
 const GRID_CANVAS_HEIGHT                = 480;
 
-const COLOR_NULL                        = [0x0, 0x0, 0x0, 0x0];
+const COLOR_NULL                        = [0x0, 0x0, 0x0, 0];
 const PIXEL_HIGHLIGHT_DURATION          = 200;
 const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
@@ -44,7 +19,7 @@ const DEFAULT_BRUSH_OPACITY             = 0.1;
 const CANVAS_SHADER_FPS                 = 32;
 
 const LAYER_INDEX_BACKGROUND            = 0;
-const LAYER_INDEX_USERINPUT             = 1;
+const LAYER_INDEX_BRUSH                 = 1;
 const LAYER_INDEX_HIGHLIGHT             = 2;
 
 
@@ -155,7 +130,7 @@ class GridPixel extends HTMLElement {
         #colorBlue;
         #colorAlpha;
 
-        constructor(r = 0xFF, g = 0xFF, b = 0xFF, a = 0xFF) {
+        constructor(r = 0xFF, g = 0xFF, b = 0xFF, a = 1) {
             this.setColor(r, g, b, a);
         }
 
@@ -170,28 +145,28 @@ class GridPixel extends HTMLElement {
             return this.#colorRed;
         }
         set red(value) {
-            this.#colorRed = isNull(value)? this.#colorRed : clamp(value, -0xFF, 0xFF);
+            this.#colorRed = isNull(value)? this.#colorRed : clampColor(value);
         }
 
         get green() {
             return this.#colorGreen;
         }
         set green(value) {
-            this.#colorGreen = isNull(value)? this.#colorGreen : clamp(value, -0xFF, 0xFF);
+            this.#colorGreen = isNull(value)? this.#colorGreen : clampColor(value);
         }
 
         get blue() {
             return this.#colorBlue;
         }
         set blue(value) {
-            this.#colorBlue = isNull(value)? this.#colorBlue : clamp(value, -0xFF, 0xFF);
+            this.#colorBlue = isNull(value)? this.#colorBlue : clampColor(value);
         }
 
         get alpha() {
             return this.#colorAlpha;
         }
         set alpha(value) {
-            this.#colorAlpha = isNull(value)? this.#colorAlpha : clamp(value, -0xFF, 0xFF);
+            this.#colorAlpha = isNull(value)? this.#colorAlpha : clamp(value);
         }
 
         get color() {
@@ -202,7 +177,7 @@ class GridPixel extends HTMLElement {
         }
     };
 
-    constructor(r = 0xFF, g = 0xFF, b = 0xFF, a = 0xFF) {
+    constructor(r = 0xFF, g = 0xFF, b = 0xFF, a = 1) {
         super();
 
         this.style.display = 'block';
@@ -213,27 +188,24 @@ class GridPixel extends HTMLElement {
     }
 
     #updateColor() {
-        let r = 0x0;
-        let g = 0x0;
-        let b = 0x0;
-        let a = 0x0;
-        let opacitySum = 0;
+        let r = this.#colorLayers[0].red;
+        let g = this.#colorLayers[0].green;
+        let b = this.#colorLayers[0].blue;
+        let a = this.#colorLayers[0].alpha;
 
-        this.traverseLayers((layer) => {
-            const opacity = layer.alpha/0xFF;
+        for (let i = 0; i < this.#colorLayers.length; ++i) {
+            const layer = this.#colorLayers[i];
 
-            r += opacity*layer.red;
-            g += opacity*layer.green;
-            b += opacity*layer.blue;
+            r += (layer.red - r)*layer.alpha;
+            g += (layer.green - g)*layer.alpha;
+            b += (layer.blue - b)*layer.alpha;
+
             a = Math.max(a, layer.alpha);
-            opacitySum += opacity;
+        }
 
-            return a === 0xFF;
-        }, true);
-
-        r = clampColor(r/opacitySum);
-        g = clampColor(g/opacitySum);
-        b = clampColor(b/opacitySum);
+        r = clampColor(r);
+        g = clampColor(g);
+        b = clampColor(b);
         a = clampColor(a);
 
         this.#colorRed = r;
@@ -332,7 +304,7 @@ class GridPixel extends HTMLElement {
     }
 
     pushLayer(setAsCurrent = true) {
-        const newLayer = new GridPixel.Layer(0x0, 0x0, 0x0, 0x0);
+        const newLayer = new GridPixel.Layer(0x0, 0x0, 0x0, 0);
         this.#colorLayers.splice(this.#currentLayerIndex + 1, 0, newLayer);
 
         if (setAsCurrent) ++this.#currentLayerIndex;
@@ -397,12 +369,15 @@ columnCountInput.value = DEFAULT_CANVAS_COLUMN_COUNT;
 brushColorPicker.value = colorToHexStr(...DEFAULT_BRUSH_COLOR);
 brushOpacityRange.value = DEFAULT_BRUSH_OPACITY;
 
+window.addEventListener('click', onWindowClick);
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
 canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
 canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
 modalboxResetButton.addEventListener('click', onModalboxResetButtonClick);
 brushColorPicker.addEventListener('change', onBrushColorPickerChange);
 brushOpacityRange.addEventListener('change', onBrushOpacityRangeChange);
+rowCountInput.addEventListener('change', onRowCountInputChange);
+columnCountInput.addEventListener('change', onColumnCountInputChange);
 
 gridCanvas = createGridCanvas();
 intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
@@ -414,7 +389,7 @@ function isNull(value) {
     return value === null || value === undefined;
 }
 
-function clamp(value, min, max) {
+function clamp(value, min = 0, max = 1) {
     return Math.max(min, Math.min(max, value));
 }
 
@@ -441,6 +416,14 @@ function hexStrToColor(hexcolor) {
     ];
 }
 
+function colorEquals(c1, c2) {
+    return (
+        c1[0] === c2[0] &&
+        c1[1] === c2[1] &&
+        c1[2] === c2[2]
+    )
+}
+
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -454,7 +437,7 @@ function defaultPixelColor(i, j, rows, columns) {
         0xFF*(i*columns + j)/pixels,
         0xFF*(j*rows + i)/pixels,
         0xFF*(i*columns)/pixels,
-        0xFF
+        1
     ];
 }
 
@@ -483,28 +466,27 @@ function initPeriodicActions(fps) {
 function onPixelLayersInit(pixel) {
     pixel.pushLayer();
     pixel.color = COLOR_NULL;
-    // pixel.color = [...brushColor, brushOpacity*0xFF];
     pixel.pushLayer();
     pixel.color = COLOR_NULL;
 }
 
 async function onMouseHoverStart(e) {
     let prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
-    // this.alpha = 0xFF;
-    this.color = [...brushColor, 0xFF];
+    this.color = [...brushColor, 1];
     this.switchLayer(prevIndex);
 
     await sleep(PIXEL_HIGHLIGHT_DURATION);
 
     prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
-    this.color = [0x0, 0x0, 0x0, 0x0];
-    // this.alpha = 0x0;
+    this.color = COLOR_NULL;
     this.switchLayer(prevIndex);
 }
 
 function onMouseHoverEnd(e) {
-    const prevIndex = this.switchLayer(LAYER_INDEX_USERINPUT);
-    this.color = [...brushColor, this.alpha + brushOpacity*0xFF];
+    const prevIndex = this.switchLayer(LAYER_INDEX_BRUSH);
+    if (!colorEquals(this.color, brushColor))
+        this.alpha = 0; 
+    this.color = [...brushColor, this.alpha + brushOpacity];
     this.switchLayer(prevIndex);
 }
 
@@ -523,13 +505,21 @@ function onModalboxResetButtonClick(e) {
 }
 
 function onBrushColorPickerChange(e) {
-    console.log(this.value);
     brushColor = hexStrToColor(this.value);
 }
 
 function onBrushOpacityRangeChange(e) {
-    console.log(this.value);
-    brushOpacity = this.value;
+    brushOpacity = parseFloat(this.value);
+}
+
+function onRowCountInputChange(e) {
+    this.value = clamp(parseInt(this.value),
+            MIN_CANVAS_ROW_COUNT, MAX_CANVAS_ROW_COUNT);
+}
+
+function onColumnCountInputChange(e) {
+    this.value = clamp(parseInt(this.value),
+            MIN_CANVAS_COLUMN_COUNT, MAX_CANVAS_COLUMN_COUNT);
 }
 
 function onWindowClick(e) {
@@ -539,11 +529,11 @@ function onWindowClick(e) {
 
 function onPeriod(pixel, time) {
     const canvas = pixel.gridCanvas;
-    let x = pixel.columnIndex/canvas.columnCount;
-    let y = pixel.rowIndex/canvas.rowCount;
+    const aspectRatio = canvas.offsetWidth/canvas.offsetHeight;
+    const x = pixel.columnIndex/canvas.columnCount;
+    const y = pixel.rowIndex/canvas.rowCount;
 
-    x *= (canvas.offsetWidth/canvas.offsetHeight);
-    const color = onShaderPeriod(x, y, time);
+    const color = onShaderPeriod(x*aspectRatio, y, aspectRatio, 1, time);
 
     const prevIndex = pixel.switchLayer(LAYER_INDEX_BACKGROUND);
     pixel.color = color;
@@ -553,7 +543,7 @@ function onPeriod(pixel, time) {
 function onGridPixelInit(pixel) {
     pixel.addEventListener('mouseover', onMouseHoverStart);
     pixel.addEventListener('mouseout', onMouseHoverEnd);
-    
+
     onPixelLayersInit(pixel);
 }
 
@@ -564,7 +554,7 @@ function onDocumentVisibilityChange() {
         intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 }
 
-function onShaderPeriod(x, y, time) {
+function onShaderPeriod(x, y, maxX, maxY, time) {
     // Shader pattern copied from https://www.shadertoy.com/view/NdKXzw then
     // translated to JavaScript.
 
@@ -582,8 +572,8 @@ function onShaderPeriod(x, y, time) {
     const MIN_DIAM = 0.5;
     const MAX_DIAM = 0.8;
 
-    let uvx = x - 0.5;
-    let uvy = y - 0.5;
+    let uvx = x - 0.5*maxX;
+    let uvy = y - 0.5*maxY;
     const a = Math.PI/4;
     const c = Math.cos(a);
     const s = Math.sin(a);
@@ -591,8 +581,8 @@ function onShaderPeriod(x, y, time) {
     const mat = [c, -s, s, c];
     const nuvx = mat[0]*uvx + mat[2]*uvy;
     const nuvy = mat[1]*uvx + mat[3]*uvy;
-    uvx = 10*nuvx;
-    uvy = 10*nuvy;
+    uvx = 8*nuvx;
+    uvy = 8*nuvy;
 
     const gvx = uvx%1;
     const gvy = uvy%1;
@@ -606,7 +596,7 @@ function onShaderPeriod(x, y, time) {
         for (let j = -nd; j <= nd; ++j) {
             const d = length(gvx - i, gvy - j);
             const dist = length(idx + i, idy + j);
-            const truc = Math.sin(dist - 6*time)*0.5 + 0.5;
+            const truc = Math.sin(dist - 7*time)*0.5 + 0.5;
 
             let rx = mix(MIN_DIAM, MAX_DIAM, truc);
             let ry = rx - 0.00009;
@@ -616,5 +606,5 @@ function onShaderPeriod(x, y, time) {
     }
 
     // return rgba as array
-    return [0xFF*(m + 0.4), 0xFF*(m*0.6 + 0.6), 0xFF*(m*0.5 + 0.4), 0xFF];
+    return [0xFF*(m + 0.4), 0xFF*(m*0.6 + 0.6), 0xFF*(m*0.5 + 0.4), 1];
 }
