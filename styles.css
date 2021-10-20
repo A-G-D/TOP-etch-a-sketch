@@ -85,29 +85,33 @@ p {
     padding: 24px 32px;
 }
 
-.canvas-controls {
+.canvas-controls-column {
     align-items: flex-start;
 }
 
-.canvas-controls button {
+.canvas-controls-column button {
     width: 96px;
 }
 
+.options-column {
+    justify-content: flex-start;
+}
+
 .options {
+    align-items: flex-start;
+}
+
+.brush-controls-column {
     justify-content: flex-start;
 }
 
-.brush-controls {
-    justify-content: flex-start;
-}
-
-.brush-controls .data {
+.brush-controls-column .left {
     align-items: stretch;
     min-width: 20%;
     width: 20%;
 }
 
-.brush-controls .controls {
+.brush-controls-column .right {
     align-items: flex-start;
 }
 

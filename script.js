@@ -10,12 +10,13 @@ const MAX_CANVAS_COLUMN_COUNT           = 128;
 const GRID_CANVAS_WIDTH                 = 480;
 const GRID_CANVAS_HEIGHT                = 480;
 
-const COLOR_NULL                        = [0x0, 0x0, 0x0, 0];
+const COLOR_TRANSPARENT                 = [0x0, 0x0, 0x0, 0];
 const PIXEL_HIGHLIGHT_DURATION          = 200;
 const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_OPACITY             = 0.1;
 const DEFAULT_BRUSH_RANGE               = [0, 1, 0.01];
+const DEFAULT_SOLID_BACKGROUND          = [0xFF, 0xFF, 0xFF];
 
 const CANVAS_SHADER_FPS                 = 32;
 
@@ -107,6 +108,14 @@ class GridCanvas extends HTMLElement {
             for (let j = 0; j < this.columnCount; ++j)
                 if (onTraverse(this.getPixel(i, j), ...callbackArgs) === true)
                     return;
+    }
+
+    setBackgroundColor(r, g, b, a) {
+        this.traversePixels((pixel) => {
+            const prevIndex = pixel.switchLayer(LAYER_INDEX_BACKGROUND);
+            pixel.color = [r, g, b, a];
+            pixel.switchLayer(prevIndex);
+        });
     }
 
     reset() {
@@ -353,6 +362,8 @@ const canvasResetButton = document.querySelector("#reset-button");
 const canvasSaveButton = document.querySelector("#save-button");
 const playPauseButton = document.querySelector("#play-pause-button");
 const cursorVisibilitySwitch = document.querySelector("#cursor-visibility-switch");
+const solidBackgroundSwitch = document.querySelector("#solid-background-switch");
+const solidBackgroundPicker = document.querySelector("#solid-background-picker");
 const brushOpacityRange = document.querySelector("#brush-opacity-range");
 const brushColorPicker = document.querySelector("#brush-color-picker");
 const brushOpacityDisplay = document.querySelector("#brush-opacity-data");
@@ -371,6 +382,7 @@ let gridCanvas;
 let intervalId;
 let brushColor = DEFAULT_BRUSH_COLOR;
 let brushOpacity = DEFAULT_BRUSH_OPACITY;
+let solidBackgroundColor = DEFAULT_SOLID_BACKGROUND;
 
 brushOpacityRange.setAttribute('min', DEFAULT_BRUSH_RANGE[0]);
 brushOpacityRange.setAttribute('max', DEFAULT_BRUSH_RANGE[1]);
@@ -382,6 +394,7 @@ brushColorPicker.value = colorToHexStr(...DEFAULT_BRUSH_COLOR);
 brushOpacityRange.value = DEFAULT_BRUSH_OPACITY;
 brushColorDisplay.value = brushColorPicker.value.toString();
 brushOpacityDisplay.value = brushOpacityRange.value.toString();
+solidBackgroundPicker.value = colorToHexStr(...DEFAULT_SOLID_BACKGROUND);
 
 window.addEventListener('click', onWindowClick);
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
@@ -390,6 +403,8 @@ canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
 canvasSaveButton.addEventListener('click', onCanvasSaveButtonClick);
 playPauseButton.addEventListener('click', onPlayPauseButtonClick);
 cursorVisibilitySwitch.addEventListener('change', onCursorVisibilitySwitchChange);
+solidBackgroundSwitch.addEventListener('change', onSolidBackgroundSwitchChange);
+solidBackgroundPicker.addEventListener('change', onSolidBackgroundPickerChange);
 modalboxResetButton.addEventListener('click', onModalboxResetButtonClick);
 brushColorPicker.addEventListener('change', onBrushColorPickerChange);
 brushOpacityRange.addEventListener('change', onBrushOpacityRangeChange);
@@ -485,9 +500,9 @@ function initPeriodicActions(fps) {
 
 function onPixelLayersInit(pixel) {
     pixel.pushLayer();
-    pixel.color = COLOR_NULL;
+    pixel.color = COLOR_TRANSPARENT;
     pixel.pushLayer();
-    pixel.color = COLOR_NULL;
+    pixel.color = COLOR_TRANSPARENT;
 }
 
 function onMouseHoverStart(e) {
@@ -507,7 +522,7 @@ async function onMouseHoverEnd(e) {
     await sleep(PIXEL_HIGHLIGHT_DURATION);
 
     prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
-    this.color = COLOR_NULL;
+    this.color = COLOR_TRANSPARENT;
     this.switchLayer(prevIndex);
 }
 
@@ -533,6 +548,21 @@ function onCursorVisibilitySwitchChange(e) {
         gridCanvas.classList.remove('hide-cursor');
     else
         gridCanvas.classList.add('hide-cursor');
+}
+
+function onSolidBackgroundSwitchChange(e) {
+    if (solidBackgroundSwitch.checked) {
+        clearInterval(intervalId);
+        gridCanvas.setBackgroundColor(...solidBackgroundColor, 1);
+    } else {
+        intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    }
+}
+
+function onSolidBackgroundPickerChange(e) {
+    solidBackgroundColor = hexStrToColor(this.value);
+    if (solidBackgroundSwitch.checked)
+        gridCanvas.setBackgroundColor(...solidBackgroundColor, 1);
 }
 
 function onModalboxResetButtonClick(e) {
