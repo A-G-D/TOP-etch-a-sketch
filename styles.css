@@ -75,6 +75,10 @@ p {
     justify-content: center;
 }
 
+.footnotes {
+    gap: 32px;
+}
+
 .footer {
     font-weight: bold;
     background-color: #383838;
