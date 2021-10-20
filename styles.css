@@ -4,8 +4,7 @@
 }
 
 html {
-    /* min-width: 100vw; */
-    /* min-height: 100vh; */
+    min-height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -101,7 +100,6 @@ p {
 
 .brush-controls {
     justify-content: flex-start;
-    /* flex: 0 1 auto; */
 }
 
 .brush-controls .data {
@@ -112,7 +110,6 @@ p {
 
 .brush-controls .controls {
     align-items: flex-start;
-    /* flex: 0 1 auto; */
 }
 
 .modal {

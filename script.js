@@ -352,7 +352,7 @@ const canvasClearButton = document.querySelector("#clear-button");
 const canvasResetButton = document.querySelector("#reset-button");
 const canvasSaveButton = document.querySelector("#save-button");
 const playPauseButton = document.querySelector("#play-pause-button");
-const pointerVisibilitySwitch = document.querySelector("#pointer-visibility-switch");
+const cursorVisibilitySwitch = document.querySelector("#cursor-visibility-switch");
 const brushOpacityRange = document.querySelector("#brush-opacity-range");
 const brushColorPicker = document.querySelector("#brush-color-picker");
 const brushOpacityDisplay = document.querySelector("#brush-opacity-data");
@@ -389,7 +389,7 @@ canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
 canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
 canvasSaveButton.addEventListener('click', onCanvasSaveButtonClick);
 playPauseButton.addEventListener('click', onPlayPauseButtonClick);
-pointerVisibilitySwitch.addEventListener('change', onPointerVisibilitySwitchChange);
+cursorVisibilitySwitch.addEventListener('change', onCursorVisibilitySwitchChange);
 modalboxResetButton.addEventListener('click', onModalboxResetButtonClick);
 brushColorPicker.addEventListener('change', onBrushColorPickerChange);
 brushOpacityRange.addEventListener('change', onBrushOpacityRangeChange);
@@ -397,7 +397,7 @@ rowCountInput.addEventListener('change', onRowCountInputChange);
 columnCountInput.addEventListener('change', onColumnCountInputChange);
 
 gridCanvas = createGridCanvas();
-onPointerVisibilitySwitchChange();
+onCursorVisibilitySwitchChange();
 intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 
 
@@ -528,8 +528,8 @@ function onPlayPauseButtonClick(e) {
     isPeriodicActionsPaused = !isPeriodicActionsPaused;
 }
 
-function onPointerVisibilitySwitchChange(e) {
-    if (pointerVisibilitySwitch.checked)
+function onCursorVisibilitySwitchChange(e) {
+    if (cursorVisibilitySwitch.checked)
         gridCanvas.classList.remove('hide-cursor');
     else
         gridCanvas.classList.add('hide-cursor');
