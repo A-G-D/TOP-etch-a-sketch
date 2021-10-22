@@ -15,7 +15,7 @@ const PIXEL_HIGHLIGHT_DURATION          = 200;
 const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_OPACITY             = 0.1;
-const DEFAULT_BRUSH_RANGE               = [0, 1, 0.01];
+const DEFAULT_BRUSH_OPACITY_RANGE       = [0, 1, 0.01];
 const DEFAULT_SOLID_BACKGROUND          = [0xFF, 0xFF, 0xFF];
 
 const CANVAS_SHADER_FPS                 = 32;
@@ -384,9 +384,9 @@ let brushColor = DEFAULT_BRUSH_COLOR;
 let brushOpacity = DEFAULT_BRUSH_OPACITY;
 let solidBackgroundColor = DEFAULT_SOLID_BACKGROUND;
 
-brushOpacityRange.setAttribute('min', DEFAULT_BRUSH_RANGE[0]);
-brushOpacityRange.setAttribute('max', DEFAULT_BRUSH_RANGE[1]);
-brushOpacityRange.setAttribute('step', DEFAULT_BRUSH_RANGE[2]);
+brushOpacityRange.setAttribute('min', DEFAULT_BRUSH_OPACITY_RANGE[0]);
+brushOpacityRange.setAttribute('max', DEFAULT_BRUSH_OPACITY_RANGE[1]);
+brushOpacityRange.setAttribute('step', DEFAULT_BRUSH_OPACITY_RANGE[2]);
 
 rowCountInput.value = DEFAULT_CANVAS_ROW_COUNT;
 columnCountInput.value = DEFAULT_CANVAS_COLUMN_COUNT;
@@ -604,10 +604,12 @@ function onGridPixelInit(pixel) {
 }
 
 function onDocumentVisibilityChange() {
-    if (document.visibilityState === 'hidden')
-        clearInterval(intervalId);
-    else
-        intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    if (!solidBackgroundSwitch.checked) {
+        if (document.visibilityState === 'hidden')
+            clearInterval(intervalId);
+        else
+            intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    }
 }
 
 function onPixelPeriod(pixel, time) {
