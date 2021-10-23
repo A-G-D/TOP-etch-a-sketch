@@ -116,17 +116,21 @@ class GridCanvas extends HTMLElement {
 
         const pixels = [];
 
-        if (deltaIAbs > deltaJAbs) {
-            for (let i = 0; i < deltaIAbs; ++i) {
-                const rowIndex = ai + i;
-                const colIndex = aj + Math.floor(i*slope);
-                pixels.push(getPixel(rowIndex, colIndex));
-            }
-        } else {
-            for (let j = 0; j < deltaJAbs; ++j) {
-                const rowIndex = ai + Math.floor(j/slope);
-                const colIndex = aj + j;
-                pixels.push(getPixel(rowIndex, colIndex));
+        if (deltaIAbs > 1 || deltaJAbs > 1) {
+            if (deltaIAbs > deltaJAbs) {
+                for (let i = 1; i < deltaIAbs; ++i) {
+                    const rowIndex = ai + i;
+                    const colIndex = aj + Math.floor(i*slope);
+                    const pixel = this.getPixel(rowIndex, colIndex);
+                    pixels.push(pixel);
+                }
+            } else {
+                for (let j = 1; j < deltaJAbs; ++j) {
+                    const rowIndex = ai + Math.floor(j/slope);
+                    const colIndex = aj + j;
+                    const pixel = this.getPixel(rowIndex, colIndex);
+                    pixels.push(pixel);
+                }
             }
         }
 
@@ -505,6 +509,7 @@ let isPeriodicActionsPaused = false;
 let time = 0;
 let gridCanvas;
 let intervalId;
+let prevHoveredPixel = undefined;
 let brushColor = DEFAULT_BRUSH_COLOR;
 let brushOpacity = DEFAULT_BRUSH_OPACITY;
 let solidBackgroundColor = DEFAULT_SOLID_BACKGROUND;
@@ -523,6 +528,7 @@ solidBackgroundPicker.value = colorToHexStr(...DEFAULT_SOLID_BACKGROUND);
 
 window.addEventListener('click', onWindowClick);
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
+mainContainer.addEventListener('pointerleave', onMainContainerPointerLeave);
 canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
 canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
 canvasSaveButton.addEventListener('click', onCanvasSaveButtonClick);
@@ -634,6 +640,18 @@ function onPointerHoverStart(e) {
     const prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
     this.color = [...brushColor, 1];
     this.switchLayer(prevIndex);
+
+    if (isNull(prevHoveredPixel) || !pointerState.primaryPressed) return;
+
+    const skippedPixels = gridCanvas.getPixelsInBetween(prevHoveredPixel, this);
+    skippedPixels.forEach(pixel => {
+        const prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
+        if (colorEquals(pixel.color, brushColor))
+            pixel.color = [...brushColor, pixel.alpha + brushOpacity];
+        else
+            pixel.color = [...brushColor, brushOpacity];
+        pixel.switchLayer(prevIndex);
+    });
 }
 
 async function onPointerHoverEnd(e) {
@@ -650,6 +668,8 @@ async function onPointerHoverEnd(e) {
     else
         this.color = [...brushColor, brushOpacity];
     this.switchLayer(prevIndex);
+
+    prevHoveredPixel = this;
 
     await sleep(PIXEL_HIGHLIGHT_DURATION);
 
@@ -670,6 +690,11 @@ function onDocumentVisibilityChange() {
         else
             intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
     }
+}
+
+function onMainContainerPointerLeave(e) {
+    if (e.target !== mainContainer) return;
+    prevHoveredPixel = undefined;
 }
 
 function onCanvasClearButtonClick(e) {
