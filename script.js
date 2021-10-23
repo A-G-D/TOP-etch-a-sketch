@@ -103,6 +103,36 @@ class GridCanvas extends HTMLElement {
         return this.getPixel(i, j);
     }
 
+    getPixelsInBetween(pixelA, pixelB) {
+        const ai = pixelA.rowIndex;
+        const aj = pixelA.columnIndex;
+        const bi = pixelB.rowIndex;
+        const bj = pixelB.columnIndex;
+        const deltaI = bi - ai;
+        const deltaJ = bj - aj;
+        const deltaIAbs = Math.abs(deltaI);
+        const deltaJAbs = Math.abs(deltaJ);
+        const slope = deltaJ/deltaI;
+
+        const pixels = [];
+
+        if (deltaIAbs > deltaJAbs) {
+            for (let i = 0; i < deltaIAbs; ++i) {
+                const rowIndex = ai + i;
+                const colIndex = aj + Math.floor(i*slope);
+                pixels.push(getPixel(rowIndex, colIndex));
+            }
+        } else {
+            for (let j = 0; j < deltaJAbs; ++j) {
+                const rowIndex = ai + Math.floor(j/slope);
+                const colIndex = aj + j;
+                pixels.push(getPixel(rowIndex, colIndex));
+            }
+        }
+
+        return pixels;
+    }
+
     traversePixels(onTraverse, ...callbackArgs) {
         for (let i = 0; i < this.rowCount; ++i)
             for (let j = 0; j < this.columnCount; ++j)
@@ -354,6 +384,99 @@ class GridPixel extends HTMLElement {
 }
 
 
+class PointerState {
+    static LEFT_MOUSE = 0;
+    static MIDDLE_MOUSE = 1;
+    static RIGHT_MOUSE = 2;
+    static PEN_CONTACT = 0;
+    static PEN_BARREL = 2;
+    static PEN_ERASER = 5;
+    static TOUCH_CONTACT = 0;
+
+    static POINTER_TYPE_MOUSE = 'mouse';
+    static POINTER_TYPE_PEN = 'pen';
+    static POINTER_TYPE_TOUCH = 'touch';
+
+    #leftMouseFlag;
+    #middleMouseFlag;
+    #rightMouseFlag;
+    #penContactFlag;
+    #penBarrelFlag;
+    #penEraserFlag;
+    #touchFlag;
+    #context;
+
+    #onPointerState(e, state) {
+        switch (e.pointerType) {
+            case PointerState.POINTER_TYPE_MOUSE:
+                switch (e.button) {
+                    case PointerState.LEFT_MOUSE:
+                        this.#leftMouseFlag = state;
+                        break;
+
+                    case PointerState.MIDDLE_MOUSE:
+                        this.#middleMouseFlag = state;
+                        break;
+
+                    case PointerState.RIGHT_MOUSE:
+                        this.#rightMouseFlag = state;
+                        break;
+                }
+                break;
+
+            case PointerState.POINTER_TYPE_PEN:
+                switch (e.button) {
+                    case PointerState.PEN_CONTACT:
+                        this.#penContactFlag = state;
+                        break;
+
+                    case PointerState.PEN_BARREL:
+                        this.#penBarrelFlag = state;
+                        break;
+
+                    case PointerState.PEN_ERASER:
+                        this.#penEraserFlag = state;
+                        break;
+                }
+                break;
+
+            case PointerState.POINTER_TYPE_TOUCH:
+                this.#touchFlag = state;
+                break;
+        }
+    }
+
+    #onPointerDown(e) {
+        this.#onPointerState(e, true);
+    }
+
+    #onPointerUp(e) {
+        this.#onPointerState(e, false);
+    }
+
+    constructor(context) {
+        this.#context = context;
+        context.addEventListener('pointerdown', e => {this.#onPointerDown(e)});
+        context.addEventListener('pointerup', e => {this.#onPointerUp(e)});
+        context.ondragstart = () => false;
+    }
+
+    get context() {
+        return this.#context;
+    }
+
+    get primaryPressed() {
+        return this.#leftMouseFlag || this.#penContactFlag || this.#touchFlag;
+    }
+    get middlePressed() {
+        return this.#middleMouseFlag;
+    }
+    get auxiliaryPressed() {
+        return this.#rightMouseFlag || this.#penBarrelFlag || this.#penEraserFlag;
+    }
+}
+
+
 // Main procedure
 
 const mainContainer = document.querySelector("#main-container .canvas-container");
@@ -372,6 +495,8 @@ const rowCountInput = document.querySelector(".rows-input");
 const columnCountInput = document.querySelector(".columns-input");
 const modalForm = document.querySelector(".modal");
 const modalboxResetButton = document.querySelector(".modalbox .reset-button");
+
+const pointerState = new PointerState(document);
 
 window.customElements.define('grid-canvas', GridCanvas);
 window.customElements.define('grid-pixel', GridPixel);
@@ -505,13 +630,20 @@ function onPixelLayersInit(pixel) {
     pixel.color = COLOR_TRANSPARENT;
 }
 
-function onMouseHoverStart(e) {
+function onPointerHoverStart(e) {
     const prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
     this.color = [...brushColor, 1];
     this.switchLayer(prevIndex);
 }
 
-async function onMouseHoverEnd(e) {
+async function onPointerHoverEnd(e) {
+    if (!pointerState.primaryPressed) {
+        const prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
+        this.color = COLOR_TRANSPARENT;
+        this.switchLayer(prevIndex);
+        return;
+    }
+
     let prevIndex = this.switchLayer(LAYER_INDEX_BRUSH);
     if (colorEquals(this.color, brushColor))
         this.color = [...brushColor, this.alpha + brushOpacity];
@@ -524,6 +656,20 @@ async function onMouseHoverEnd(e) {
     prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
     this.color = COLOR_TRANSPARENT;
     this.switchLayer(prevIndex);
+}
+
+function onWindowClick(e) {
+    if (e.target == modalForm)
+        modalForm.style.display = 'none';
+}
+
+function onDocumentVisibilityChange() {
+    if (!solidBackgroundSwitch.checked) {
+        if (document.visibilityState === 'hidden')
+            clearInterval(intervalId);
+        else
+            intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    }
 }
 
 function onCanvasClearButtonClick(e) {
@@ -591,25 +737,11 @@ function onColumnCountInputChange(e) {
             MIN_CANVAS_COLUMN_COUNT, MAX_CANVAS_COLUMN_COUNT);
 }
 
-function onWindowClick(e) {
-    if (e.target == modalForm)
-        modalForm.style.display = 'none';
-}
-
 function onGridPixelInit(pixel) {
-    pixel.addEventListener('mouseover', onMouseHoverStart);
-    pixel.addEventListener('mouseout', onMouseHoverEnd);
+    pixel.addEventListener('pointerover', onPointerHoverStart);
+    pixel.addEventListener('pointerout', onPointerHoverEnd);
 
     onPixelLayersInit(pixel);
-}
-
-function onDocumentVisibilityChange() {
-    if (!solidBackgroundSwitch.checked) {
-        if (document.visibilityState === 'hidden')
-            clearInterval(intervalId);
-        else
-            intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
-    }
 }
 
 function onPixelPeriod(pixel, time) {
