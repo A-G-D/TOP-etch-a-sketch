@@ -1,7 +1,7 @@
 'use strict';
 
-const DEFAULT_CANVAS_ROW_COUNT          = 48;
-const DEFAULT_CANVAS_COLUMN_COUNT       = 48;
+const DEFAULT_CANVAS_ROW_COUNT          = 32;
+const DEFAULT_CANVAS_COLUMN_COUNT       = 32;
 const MIN_CANVAS_ROW_COUNT              = 16;
 const MIN_CANVAS_COLUMN_COUNT           = 16;
 const MAX_CANVAS_ROW_COUNT              = 128;
@@ -10,12 +10,12 @@ const MAX_CANVAS_COLUMN_COUNT           = 128;
 const GRID_CANVAS_WIDTH                 = 480;
 const GRID_CANVAS_HEIGHT                = 480;
 
-const COLOR_TRANSPARENT                 = [0x0, 0x0, 0x0, 0];
+const COLOR_NONE                 = [0x0, 0x0, 0x0, 0];
 const PIXEL_HIGHLIGHT_DURATION          = 200;
 const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_OPACITY             = 0.1;
-const DEFAULT_BRUSH_RANGE               = [0, 1, 0.01];
+const DEFAULT_BRUSH_OPACITY_RANGE       = [0, 1, 0.01];
 const DEFAULT_SOLID_BACKGROUND          = [0xFF, 0xFF, 0xFF];
 
 const CANVAS_SHADER_FPS                 = 32;
@@ -70,7 +70,7 @@ class GridCanvas extends HTMLElement {
                     value: this, writable: false
                 });
 
-                pixel.classList.add(`grid-item-${i*columns + j}`);
+                pixel.classList.add(`grid-item-${i}-${j}`);
                 pixel.style.gridColumnStart = `${j + 1}`;
                 pixel.style.gridColumnEnd = `${j + 2}`;
                 pixel.style.gridRowStart = `${i + 1}`;
@@ -101,6 +101,42 @@ class GridCanvas extends HTMLElement {
         const i = Math.ceil(clamp(x, 0, 1)*this.rowCount);
         const j = Math.ceil(clamp(y, 0, 1)*this.columnCount);
         return this.getPixel(i, j);
+    }
+
+    getPixelsInBetween(pixelA, pixelB) {
+        const ai = pixelA.rowIndex;
+        const aj = pixelA.columnIndex;
+        const bi = pixelB.rowIndex;
+        const bj = pixelB.columnIndex;
+        const deltaI = bi - ai;
+        const deltaJ = bj - aj;
+        const deltaIAbs = Math.abs(deltaI);
+        const deltaJAbs = Math.abs(deltaJ);
+        const slope = deltaJ/deltaI;
+
+        const pixels = [];
+
+        if (deltaIAbs > 1 || deltaJAbs > 1) {
+            if (deltaIAbs > deltaJAbs) {
+                const sign = deltaIAbs/deltaI;
+                for (let i = 1; i < deltaIAbs; ++i) {
+                    const rowIndex = ai + sign*i;
+                    const colIndex = aj + sign*Math.round(i*slope);
+                    const pixel = this.getPixel(rowIndex, colIndex);
+                    pixels.push(pixel);
+                }
+            } else {
+                const sign = deltaJAbs/deltaJ;
+                for (let j = 1; j < deltaJAbs; ++j) {
+                    const rowIndex = ai + sign*Math.round(j/slope);
+                    const colIndex = aj + sign*j;
+                    const pixel = this.getPixel(rowIndex, colIndex);
+                    pixels.push(pixel);
+                }
+            }
+        }
+
+        return pixels;
     }
 
     traversePixels(onTraverse, ...callbackArgs) {
@@ -354,6 +390,144 @@ class GridPixel extends HTMLElement {
 }
 
 
+class PointerState {
+    static LEFT_MOUSE = 0;
+    static MIDDLE_MOUSE = 1;
+    static RIGHT_MOUSE = 2;
+    static PEN_CONTACT = 0;
+    static PEN_BARREL = 2;
+    static PEN_ERASER = 5;
+    static TOUCH_CONTACT = 0;
+
+    static POINTER_TYPE_MOUSE = 'mouse';
+    static POINTER_TYPE_PEN = 'pen';
+    static POINTER_TYPE_TOUCH = 'touch';
+
+    #leftMouseFlag;
+    #middleMouseFlag;
+    #rightMouseFlag;
+    #penContactFlag;
+    #penBarrelFlag;
+    #penEraserFlag;
+    #touchFlag;
+    #primaryStateChangeListeners;
+    #middleStateChangeListeners;
+    #auxiliaryStateChangeListeners;
+    #movementListeners;
+    #context;
+
+    #updatePointerState(e, state) {
+        switch (e.pointerType) {
+            case PointerState.POINTER_TYPE_MOUSE:
+                switch (e.button) {
+                    case PointerState.LEFT_MOUSE:
+                        this.#leftMouseFlag = state;
+                        break;
+
+                    case PointerState.MIDDLE_MOUSE:
+                        this.#middleMouseFlag = state;
+                        break;
+
+                    case PointerState.RIGHT_MOUSE:
+                        this.#rightMouseFlag = state;
+                        break;
+                }
+                break;
+
+            case PointerState.POINTER_TYPE_PEN:
+                switch (e.button) {
+                    case PointerState.PEN_CONTACT:
+                        this.#penContactFlag = state;
+                        break;
+
+                    case PointerState.PEN_BARREL:
+                        this.#penBarrelFlag = state;
+                        break;
+
+                    case PointerState.PEN_ERASER:
+                        this.#penEraserFlag = state;
+                        break;
+                }
+                break;
+
+            case PointerState.POINTER_TYPE_TOUCH:
+                this.#touchFlag = state;
+                break;
+        }
+    }
+
+    #onPointerStateChange(e, down) {
+        const prevPrimaryPressed = this.primaryPressed;
+        const prevMiddlePressed = this.middlePressed;
+        const prevAuxiliaryPressed = this.auxiliaryPressed;
+
+        this.#updatePointerState(e, down);
+
+        const listenerKey = down? 'onDown' : 'onUp';
+
+        if (this.primaryPressed !== prevPrimaryPressed) {
+            this.#primaryStateChangeListeners.forEach(handler => {
+                handler[listenerKey].call(this.#context, e);
+            });
+        }
+        if (this.middlePressed !== prevMiddlePressed) {
+            this.#middleStateChangeListeners.forEach(handler => {
+                handler[listenerKey].call(this.#context, e);
+            });
+        }
+        if (this.auxiliaryPressed !== prevAuxiliaryPressed) {
+            this.#auxiliaryStateChangeListeners.forEach(handler => {
+                handler[listenerKey].call(this.#context, e);
+            });
+        }
+    }
+
+    #onPointerMove(e) {
+        this.#movementListeners.forEach(listener => listener.call(this, e));
+    }
+
+    constructor(context) {
+        this.#context = context;
+        this.#primaryStateChangeListeners = [];
+        this.#middleStateChangeListeners = [];
+        this.#auxiliaryStateChangeListeners = [];
+        this.#movementListeners = [];
+
+        context.addEventListener('pointerdown', e => {this.#onPointerStateChange(e, true)});
+        context.addEventListener('pointerup', e => {this.#onPointerStateChange(e, false)});
+        context.addEventListener('pointermove', e => {this.#onPointerMove(e)});
+        context.ondragstart = () => false;
+    }
+
+    get context() {
+        return this.#context;
+    }
+
+    get primaryPressed() {
+        return this.#leftMouseFlag || this.#penContactFlag || this.#touchFlag;
+    }
+    get middlePressed() {
+        return this.#middleMouseFlag;
+    }
+    get auxiliaryPressed() {
+        return this.#rightMouseFlag || this.#penBarrelFlag || this.#penEraserFlag;
+    }
+
+    addPrimaryStateListener(onDown, onUp) {
+        this.#primaryStateChangeListeners.push({onDown, onUp});
+    }
+    addMiddleStateListener(onDown, onUp) {
+        this.#middleStateChangeListeners.push({onDown, onUp});
+    }
+    addAuxiliaryStateListener(onDown, onUp) {
+        this.#auxiliaryStateChangeListeners.push({onDown, onUp});
+    }
+    addMovementListener(onMove) {
+        this.#movementListeners.push(onMove);
+    }
+}
+
+
 // Main procedure
 
 const mainContainer = document.querySelector("#main-container .canvas-container");
@@ -373,6 +547,8 @@ const columnCountInput = document.querySelector(".columns-input");
 const modalForm = document.querySelector(".modal");
 const modalboxResetButton = document.querySelector(".modalbox .reset-button");
 
+const pointerState = new PointerState(document);
+
 window.customElements.define('grid-canvas', GridCanvas);
 window.customElements.define('grid-pixel', GridPixel);
 
@@ -380,13 +556,14 @@ let isPeriodicActionsPaused = false;
 let time = 0;
 let gridCanvas;
 let intervalId;
+let selectedPixel = undefined;
 let brushColor = DEFAULT_BRUSH_COLOR;
 let brushOpacity = DEFAULT_BRUSH_OPACITY;
 let solidBackgroundColor = DEFAULT_SOLID_BACKGROUND;
 
-brushOpacityRange.setAttribute('min', DEFAULT_BRUSH_RANGE[0]);
-brushOpacityRange.setAttribute('max', DEFAULT_BRUSH_RANGE[1]);
-brushOpacityRange.setAttribute('step', DEFAULT_BRUSH_RANGE[2]);
+brushOpacityRange.setAttribute('min', DEFAULT_BRUSH_OPACITY_RANGE[0]);
+brushOpacityRange.setAttribute('max', DEFAULT_BRUSH_OPACITY_RANGE[1]);
+brushOpacityRange.setAttribute('step', DEFAULT_BRUSH_OPACITY_RANGE[2]);
 
 rowCountInput.value = DEFAULT_CANVAS_ROW_COUNT;
 columnCountInput.value = DEFAULT_CANVAS_COLUMN_COUNT;
@@ -398,6 +575,7 @@ solidBackgroundPicker.value = colorToHexStr(...DEFAULT_SOLID_BACKGROUND);
 
 window.addEventListener('click', onWindowClick);
 document.addEventListener('visibilitychange', onDocumentVisibilityChange);
+mainContainer.addEventListener('pointerleave', onMainContainerPointerLeave);
 canvasClearButton.addEventListener('click', onCanvasClearButtonClick);
 canvasResetButton.addEventListener('click', onCanvasResetButtonClick);
 canvasSaveButton.addEventListener('click', onCanvasSaveButtonClick);
@@ -410,6 +588,8 @@ brushColorPicker.addEventListener('change', onBrushColorPickerChange);
 brushOpacityRange.addEventListener('change', onBrushOpacityRangeChange);
 rowCountInput.addEventListener('change', onRowCountInputChange);
 columnCountInput.addEventListener('change', onColumnCountInputChange);
+
+pointerState.addPrimaryStateListener(onPointerDown, onPointerUp);
 
 gridCanvas = createGridCanvas();
 onCursorVisibilitySwitchChange();
@@ -480,8 +660,18 @@ function createGridCanvas() {
     const canvas = new GridCanvas(rows, columns, GRID_CANVAS_WIDTH,
             GRID_CANVAS_HEIGHT);
     canvas.traversePixels(onGridPixelInit);
-    if (!isNull(gridCanvas)) mainContainer.removeChild(gridCanvas);
+    canvas.addEventListener('pointermove', onGridCanvasPointerMove);
+
+    if (!isNull(gridCanvas))
+        mainContainer.removeChild(gridCanvas);
+
     mainContainer.appendChild(canvas);
+
+    if (solidBackgroundSwitch.checked)
+        canvas.setBackgroundColor(...solidBackgroundColor, 1);
+    else
+        canvas.traversePixels(onPixelPeriod, time);
+
     return canvas;
 }
 
@@ -500,18 +690,42 @@ function initPeriodicActions(fps) {
 
 function onPixelLayersInit(pixel) {
     pixel.pushLayer();
-    pixel.color = COLOR_TRANSPARENT;
+    pixel.color = COLOR_NONE;
     pixel.pushLayer();
-    pixel.color = COLOR_TRANSPARENT;
+    pixel.color = COLOR_NONE;
 }
 
-function onMouseHoverStart(e) {
+function onPixelPointerOver(e) {
     const prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
     this.color = [...brushColor, 1];
     this.switchLayer(prevIndex);
+
+    if (!pointerState.primaryPressed) return;
+
+    if (!isNull(selectedPixel)) {
+        const skippedPixels = gridCanvas.getPixelsInBetween(selectedPixel, this);
+
+        skippedPixels.forEach(pixel => {
+            const prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
+            if (colorEquals(pixel.color, brushColor))
+                pixel.color = [...brushColor, pixel.alpha + brushOpacity];
+            else
+                pixel.color = [...brushColor, brushOpacity];
+            pixel.switchLayer(prevIndex);
+        });
+    }
+
+    selectedPixel = this;
 }
 
-async function onMouseHoverEnd(e) {
+async function onPixelPointerOut(e) {
+    if (!pointerState.primaryPressed) {
+        const prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
+        this.color = COLOR_NONE;
+        this.switchLayer(prevIndex);
+        return;
+    }
+
     let prevIndex = this.switchLayer(LAYER_INDEX_BRUSH);
     if (colorEquals(this.color, brushColor))
         this.color = [...brushColor, this.alpha + brushOpacity];
@@ -522,13 +736,40 @@ async function onMouseHoverEnd(e) {
     await sleep(PIXEL_HIGHLIGHT_DURATION);
 
     prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
-    this.color = COLOR_TRANSPARENT;
+    this.color = COLOR_NONE;
     this.switchLayer(prevIndex);
+}
+
+function onGridCanvasPointerMove(e) {
+    const pixel = document.elementFromPoint(e.pageX - window.scrollX, e.pageY - window.scrollY);
+
+    if (pixel !== selectedPixel) {
+        onPixelPointerOver.call(pixel, e);
+    }
+}
+
+function onWindowClick(e) {
+    if (e.target == modalForm)
+        modalForm.style.display = 'none';
+}
+
+function onDocumentVisibilityChange() {
+    if (!solidBackgroundSwitch.checked) {
+        if (document.visibilityState === 'hidden')
+            clearInterval(intervalId);
+        else
+            intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    }
+}
+
+function onMainContainerPointerLeave(e) {
+    if (e.target === mainContainer)
+        selectedPixel = undefined;
 }
 
 function onCanvasClearButtonClick(e) {
     gridCanvas.reset();
-    gridCanvas.traversePixels(pixel => {onPixelLayersInit(pixel);});
+    gridCanvas.traversePixels(pixel => onPixelLayersInit(pixel));
 }
 
 function onCanvasResetButtonClick(e) {
@@ -568,7 +809,6 @@ function onSolidBackgroundPickerChange(e) {
 function onModalboxResetButtonClick(e) {
     modalForm.style.display = 'none';
     gridCanvas = createGridCanvas();
-    gridCanvas.traversePixels(onPixelPeriod, time);
 }
 
 function onBrushColorPickerChange(e) {
@@ -591,23 +831,32 @@ function onColumnCountInputChange(e) {
             MIN_CANVAS_COLUMN_COUNT, MAX_CANVAS_COLUMN_COUNT);
 }
 
-function onWindowClick(e) {
-    if (e.target == modalForm)
-        modalForm.style.display = 'none';
+function onPointerDown(e) {
+}
+
+function onPointerUp(e) {
+    selectedPixel = undefined;
 }
 
 function onGridPixelInit(pixel) {
-    pixel.addEventListener('mouseover', onMouseHoverStart);
-    pixel.addEventListener('mouseout', onMouseHoverEnd);
+    Object.defineProperty(pixel, 'pointerState', {
+        value: new PointerState(pixel), writable: false
+    });
+
+    pixel.addEventListener('pointerout', onPixelPointerOut);
+    pixel.pointerState.addPrimaryStateListener(
+        () => {},
+        (e) => {
+            let prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
+            if (colorEquals(pixel.color, brushColor))
+                pixel.color = [...brushColor, pixel.alpha + brushOpacity];
+            else
+                pixel.color = [...brushColor, brushOpacity];
+            pixel.switchLayer(prevIndex);
+        }
+    );
 
     onPixelLayersInit(pixel);
-}
-
-function onDocumentVisibilityChange() {
-    if (document.visibilityState === 'hidden')
-        clearInterval(intervalId);
-    else
-        intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 }
 
 function onPixelPeriod(pixel, time) {
