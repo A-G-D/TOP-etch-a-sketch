@@ -10,7 +10,7 @@ const MAX_CANVAS_COLUMN_COUNT           = 128;
 const GRID_CANVAS_WIDTH                 = 480;
 const GRID_CANVAS_HEIGHT                = 480;
 
-const COLOR_NONE                 = [0x0, 0x0, 0x0, 0];
+const COLOR_NONE                        = [0x0, 0x0, 0x0, 0];
 const PIXEL_HIGHLIGHT_DURATION          = 200;
 const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
@@ -488,6 +488,7 @@ class PointerState {
 
     constructor(context) {
         this.#context = context;
+
         this.#primaryStateChangeListeners = [];
         this.#middleStateChangeListeners = [];
         this.#auxiliaryStateChangeListeners = [];
@@ -743,9 +744,8 @@ async function onPixelPointerOut(e) {
 function onGridCanvasPointerMove(e) {
     const pixel = document.elementFromPoint(e.pageX - window.scrollX, e.pageY - window.scrollY);
 
-    if (pixel !== selectedPixel) {
+    if (pixel !== selectedPixel)
         onPixelPointerOver.call(pixel, e);
-    }
 }
 
 function onWindowClick(e) {
@@ -809,6 +809,7 @@ function onSolidBackgroundPickerChange(e) {
 function onModalboxResetButtonClick(e) {
     modalForm.style.display = 'none';
     gridCanvas = createGridCanvas();
+    onCursorVisibilitySwitchChange();
 }
 
 function onBrushColorPickerChange(e) {
@@ -835,6 +836,14 @@ function onPointerDown(e) {
 }
 
 function onPointerUp(e) {
+    if (selectedPixel) {
+        const prevIndex = selectedPixel.switchLayer(LAYER_INDEX_BRUSH);
+        if (colorEquals(selectedPixel.color, brushColor))
+            selectedPixel.color = [...brushColor, selectedPixel.alpha + brushOpacity];
+        else
+            selectedPixel.color = [...brushColor, brushOpacity];
+        selectedPixel.switchLayer(prevIndex);
+    }
     selectedPixel = undefined;
 }
 
@@ -845,15 +854,8 @@ function onGridPixelInit(pixel) {
 
     pixel.addEventListener('pointerout', onPixelPointerOut);
     pixel.pointerState.addPrimaryStateListener(
-        () => {},
-        (e) => {
-            let prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
-            if (colorEquals(pixel.color, brushColor))
-                pixel.color = [...brushColor, pixel.alpha + brushOpacity];
-            else
-                pixel.color = [...brushColor, brushOpacity];
-            pixel.switchLayer(prevIndex);
-        }
+        (e) => {selectedPixel = pixel;},
+        (e) => {}
     );
 
     onPixelLayersInit(pixel);
