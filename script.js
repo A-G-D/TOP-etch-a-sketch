@@ -809,6 +809,7 @@ function onSolidBackgroundPickerChange(e) {
 function onModalboxResetButtonClick(e) {
     modalForm.style.display = 'none';
     gridCanvas = createGridCanvas();
+    onCursorVisibilitySwitchChange();
 }
 
 function onBrushColorPickerChange(e) {
