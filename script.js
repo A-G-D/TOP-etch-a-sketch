@@ -10,7 +10,7 @@ const MAX_CANVAS_COLUMN_COUNT           = 128;
 const GRID_CANVAS_WIDTH                 = 480;
 const GRID_CANVAS_HEIGHT                = 480;
 
-const COLOR_NONE                 = [0x0, 0x0, 0x0, 0];
+const COLOR_NONE                        = [0x0, 0x0, 0x0, 0];
 const PIXEL_HIGHLIGHT_DURATION          = 200;
 const PIXEL_HIGHLIGHT_COLOR             = [0x0, 0x0, 0x0];
 const DEFAULT_BRUSH_COLOR               = [0x0, 0x0, 0x0];
@@ -845,9 +845,11 @@ function onGridPixelInit(pixel) {
 
     pixel.addEventListener('pointerout', onPixelPointerOut);
     pixel.pointerState.addPrimaryStateListener(
-        () => {},
         (e) => {
-            let prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
+            selectedPixel = pixel;
+        },
+        (e) => {
+            const prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
             if (colorEquals(pixel.color, brushColor))
                 pixel.color = [...brushColor, pixel.alpha + brushOpacity];
             else
