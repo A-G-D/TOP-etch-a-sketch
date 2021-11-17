@@ -1,121 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="res/icons/paint-brush.png" type="image/x-icon" />
+    <script async defer src="https://buttons.github.io/buttons.js"></script>
+    <script src="script.js" defer></script>
+    <title>Etch-A-Sketch</title>
+  </head>
 
-<head>
-  <meta charset="UTF-8">
-  <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="styles.css">
-  <link rel="icon" href="res/icons/paint-brush.png" type="image/x-icon">
-  <script async defer src="https://buttons.github.io/buttons.js"></script>
-  <script src="script.js" defer></script>
-  <title>Etch-A-Sketch</title>
-</head>
-
-<body>
-  <div id="main-container" class="vflex">
-    <div class="header hflex">
-      <div class="toolbar hflex">
-        <div class="canvas-controls-column vflex">
-          <label class="bold">Canvas Controls</label>
-          <div class="tooltip">
-            <button id="reset-button" class="tooltip">Reset</button>
-            <span class="tooltiptext">Clears the canvas and optionally specify a new pixel grid dimensions</span>
-          </div>
-          <div class="tooltip">
-            <button id="clear-button" class="tooltip">Clear</button>
-            <span class="tooltiptext">Removes all brush strokes from the canvas</span>
-          </div>
-          <div class="tooltip">
-            <button id="save-button" class="tooltip">Save</button>
-            <span class="tooltiptext">Save the canvas in your computer as a JPG</span>
-          </div>
-          <div class="tooltip">
-            <button id="play-pause-button" class="tooltip">Play/Pause</button>
-            <span class="tooltiptext">Plays/Pauses the pattern if the background is a Shader</span>
-          </div>
-        </div>
-
-        <div class="options-column vflex">
-          <label class="bold">Options</label>
-          <div class="options hflex">
-            <div class="left vflex">
-              <input id="cursor-visibility-switch" type="checkbox">
-              <input id="solid-background-switch" type="checkbox">
-            </div>
-            <div class="right vflex">
-              <p>Show cursor on canvas</p>
-              <p>Solid-color background</p>
-              <div class="tooltip">
-                <input id="solid-background-picker" type="color">
-                <span class="tooltiptext">Solid background color picker</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="brush-controls-column vflex">
-          <label class="bold">Brush Controls</label>
-          <div class="brush-controls hflex reversed">
-            <div class="left vflex">
-              <input id="brush-opacity-data" readonly>
-              <input id="brush-color-data" readonly>
-            </div>
-            <div class="right vflex">
-              <div class="tooltip">
-                <input id="brush-opacity-range" type="range" name="Brush Opacity">
-                <span class="tooltiptext">Brush Opacity (Value Range: 0.00 - 1.00)</span>
-              </div>
-              <div class="tooltip">
-                <input id="brush-color-picker" type="color" name="Brush Color">
-                <span class="tooltiptext">Brush Color</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="canvas-container vflex">
-      <!-- Grid Canvas goes here -->
-    </div>
-
-    <div class="footnotes vflex">
-      <div class="github-buttons hflex">
-        <a class="github-button" href="https://github.com/A-G-D/TOP-etch-a-sketch" data-color-scheme="no-preference: light; light: light; dark: dark;" data-icon="octicon-star" data-size="large" data-show-count="true" aria-label="Star A-G-D/TOP-etch-a-sketch on GitHub">Star</a>
-        <a class="github-button" href="https://github.com/A-G-D" data-color-scheme="no-preference: light; light: light; dark: dark;" data-size="large" data-show-count="true" aria-label="Follow @A-G-D on GitHub">Follow @A-G-D</a>
-      </div>
-      <div class="vflex">
-        <p>Credits to the original author of the Shader pattern. <a href="https://www.shadertoy.com/view/NdKXzw">(Source)</a></p>
-        <p>Webpage icon made by <a href="https://www.flaticon.com/authors/freepik" title="Freepik">Freepik</a> from <a href="https://www.flaticon.com/" title="Flaticon">www.flaticon.com</a></p>
-      </div>
-    </div>
-
-    <div class="footer hflex">
-      <p>Copyright © 2021 A-G-D</p>
-    </div>
-  </div>
-
-  <div class="modal">
-    <div class="modalbox vflex">
+  <body>
+    <div id="main-container" class="vflex">
       <div class="header hflex">
-          <label class="title bold">Reset Canvas</label>
-      </div>
-      <div class="body hflex">
-        <div class="left vflex">
-          <label class="rows-label">Rows</label>
-          <label class="columns-label">Columns</label>
+        <div class="toolbar hflex">
+          <div class="canvas-controls-column vflex">
+            <label class="bold">Canvas Controls</label>
+            <div class="tooltip">
+              <button id="reset-button" class="tooltip">Reset</button>
+              <span class="tooltiptext"
+                >Clears the canvas and optionally specify a new pixel grid
+                dimensions</span
+              >
+            </div>
+            <div class="tooltip">
+              <button id="clear-button" class="tooltip">Clear</button>
+              <span class="tooltiptext"
+                >Removes all brush strokes from the canvas</span
+              >
+            </div>
+            <div class="tooltip">
+              <button id="save-button" class="tooltip">Save</button>
+              <span class="tooltiptext"
+                >Save the canvas in your computer as a JPG</span
+              >
+            </div>
+            <div class="tooltip">
+              <button id="play-pause-button" class="tooltip">Play/Pause</button>
+              <span class="tooltiptext"
+                >Plays/Pauses the pattern if the background is a Shader</span
+              >
+            </div>
+          </div>
+
+          <div class="options-column vflex">
+            <label class="bold">Options</label>
+            <div class="options hflex">
+              <div class="left vflex">
+                <input id="cursor-visibility-switch" type="checkbox" />
+                <input id="solid-background-switch" type="checkbox" />
+              </div>
+              <div class="right vflex">
+                <p>Show cursor on canvas</p>
+                <p>Solid-color background</p>
+                <div class="tooltip">
+                  <input id="solid-background-picker" type="color" />
+                  <span class="tooltiptext">Solid background color picker</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="brush-controls-column vflex">
+            <label class="bold">Brush Controls</label>
+            <div class="brush-controls hflex reversed">
+              <div class="left vflex">
+                <input id="brush-opacity-data" readonly />
+                <input id="brush-color-data" readonly />
+              </div>
+              <div class="right vflex">
+                <div class="tooltip">
+                  <input
+                    id="brush-opacity-range"
+                    type="range"
+                    name="Brush Opacity"
+                  />
+                  <span class="tooltiptext"
+                    >Brush Opacity (Value Range: 0.00 - 1.00)</span
+                  >
+                </div>
+                <div class="tooltip">
+                  <input
+                    id="brush-color-picker"
+                    type="color"
+                    name="Brush Color"
+                  />
+                  <span class="tooltiptext">Brush Color</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="right vflex">
-          <input class="rows-input" type="number" min="16" max="128"></input>
-          <input class="columns-input" type="number" min="16" max="128"></input>
+      </div>
+
+      <div class="canvas-container vflex">
+        <!-- Grid Canvas goes here -->
+      </div>
+
+      <div class="footnotes vflex">
+        <div class="github-buttons hflex">
+          <a
+            class="github-button"
+            href="https://github.com/A-G-D/TOP-etch-a-sketch"
+            data-color-scheme="no-preference: light; light: light; dark: dark;"
+            data-icon="octicon-star"
+            data-size="large"
+            data-show-count="true"
+            aria-label="Star A-G-D/TOP-etch-a-sketch on GitHub"
+            >Star</a
+          >
+          <a
+            class="github-button"
+            href="https://github.com/A-G-D"
+            data-color-scheme="no-preference: light; light: light; dark: dark;"
+            data-size="large"
+            data-show-count="true"
+            aria-label="Follow @A-G-D on GitHub"
+            >Follow @A-G-D</a
+          >
+        </div>
+        <div class="vflex">
+          <p>
+            Credits to the original author of the Shader pattern.
+            <a href="https://www.shadertoy.com/view/NdKXzw">(Source)</a>
+          </p>
+          <p>
+            Webpage icon made by
+            <a href="https://www.flaticon.com/authors/freepik" title="Freepik"
+              >Freepik</a
+            >
+            from
+            <a href="https://www.flaticon.com/" title="Flaticon"
+              >www.flaticon.com</a
+            >
+          </p>
         </div>
       </div>
+
       <div class="footer hflex">
-        <button class="reset-button">Reset</button>
+        <p>Copyright © 2021 A-G-D</p>
       </div>
     </div>
-  </div>
-</body>
 
+    <div class="modal">
+      <div class="modalbox vflex">
+        <div class="header hflex">
+          <label class="title bold">Reset Canvas</label>
+        </div>
+        <div class="body hflex">
+          <div class="left vflex">
+            <label class="rows-label">Rows</label>
+            <label class="columns-label">Columns</label>
+          </div>
+          <div class="right vflex">
+            <input class="rows-input" type="number" min="16" max="128" />
+            <input class="columns-input" type="number" min="16" max="128" />
+          </div>
+        </div>
+        <div class="footer hflex">
+          <button class="reset-button">Reset</button>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
