@@ -24,6 +24,8 @@ const LAYER_INDEX_BACKGROUND = 0;
 const LAYER_INDEX_BRUSH = 1;
 const LAYER_INDEX_HIGHLIGHT = 2;
 
+const SVG_EXPORT_DIMENSIONS = [256, 256];
+
 //
 
 class GridCanvas extends HTMLElement {
@@ -156,6 +158,25 @@ class GridCanvas extends HTMLElement {
 
   reset() {
     this.traversePixels((pixel) => pixel.clearLayers());
+  }
+
+  exportAsSVG() {
+    const dx = SVG_EXPORT_DIMENSIONS[0] / this.columnCount;
+    const dy = SVG_EXPORT_DIMENSIONS[1] / this.rowCount;
+    const canvasSvg = SVG();
+
+    canvasSvg.size(...SVG_EXPORT_DIMENSIONS);
+
+    this.traversePixels((pixel) => {
+      const color = colorToHexStr(...pixel.computedColor);
+      canvasSvg
+        .rect(dx, dy)
+        .fill(color)
+        .stroke({ color, opacity: 1, width: 0.5 })
+        .move(pixel.columnIndex * dx, pixel.rowIndex * dy);
+    });
+
+    return canvasSvg.svg();
   }
 }
 
@@ -370,7 +391,6 @@ class GridPixel extends HTMLElement {
 
     if (this.#currentLayerIndex === this.#colorLayers.length - 1)
       --this.#currentLayerIndex;
-
     return popped;
   }
   clearLayers() {
@@ -628,11 +648,11 @@ function clampColor(value) {
 }
 
 function colorToHexStr(r, g, b) {
-  r = r.toString(16);
+  r = Math.floor(r).toString(16);
   if (r.length == 1) r = `0${r}`;
-  g = g.toString(16);
+  g = Math.floor(g).toString(16);
   if (g.length == 1) g = `0${g}`;
-  b = b.toString(16);
+  b = Math.floor(b).toString(16);
   if (b.length == 1) b = `0${b}`;
   return `#${r}${g}${b}`;
 }
@@ -689,6 +709,7 @@ function createGridCanvas() {
   return canvas;
 }
 
+let preview;
 function initPeriodicActions(fps) {
   gridCanvas.traversePixels(onPixelPeriod, time);
   return setInterval(() => {
@@ -785,7 +806,9 @@ function onCanvasResetButtonClick(e) {
 }
 
 function onCanvasSaveButtonClick(e) {
-  alert("This Functionality is NYI...");
+  const svgString = gridCanvas.exportAsSVG();
+  const blob = new Blob([svgString], { type: "image/svg+xml" });
+  saveAs(blob, "sketch.svg");
 }
 
 function onPlayPauseButtonClick(e) {
