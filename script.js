@@ -25,6 +25,7 @@ const LAYER_INDEX_BRUSH = 1;
 const LAYER_INDEX_HIGHLIGHT = 2;
 
 const SVG_EXPORT_DIMENSIONS = [256, 256];
+const SVG_EXPORT_DEFAULT_FILENAME = "sketch.svg";
 
 //
 
@@ -44,9 +45,11 @@ class GridCanvas extends HTMLElement {
     this.#rows = rows;
     this.#columns = columns;
     this.#pixels = rows * columns;
+    this.style.touchAction = "none";
     this.style.display = "grid";
     this.style.gridTemplateRows = `repeat(${rows}, ${cellHeight}px)`;
     this.style.gridTemplateColumns = `repeat(${columns}, ${cellWidth}px)`;
+    this.oncontextmenu = (e) => false;
 
     for (let i = 0; i < rows; ++i) {
       const pixelRow = [];
@@ -143,9 +146,11 @@ class GridCanvas extends HTMLElement {
   }
 
   traversePixels(onTraverse, ...callbackArgs) {
-    for (let i = 0; i < this.rowCount; ++i)
-      for (let j = 0; j < this.columnCount; ++j)
+    for (let i = 0; i < this.rowCount; ++i) {
+      for (let j = 0; j < this.columnCount; ++j) {
         if (onTraverse(this.getPixel(i, j), ...callbackArgs) === true) return;
+      }
+    }
   }
 
   setBackgroundColor(r, g, b, a) {
@@ -209,28 +214,28 @@ class GridPixel extends HTMLElement {
       return this.#colorRed;
     }
     set red(value) {
-      this.#colorRed = isNull(value) ? this.#colorRed : clampColor(value);
+      this.#colorRed = value == null ? this.#colorRed : clampColor(value);
     }
 
     get green() {
       return this.#colorGreen;
     }
     set green(value) {
-      this.#colorGreen = isNull(value) ? this.#colorGreen : clampColor(value);
+      this.#colorGreen = value == null ? this.#colorGreen : clampColor(value);
     }
 
     get blue() {
       return this.#colorBlue;
     }
     set blue(value) {
-      this.#colorBlue = isNull(value) ? this.#colorBlue : clampColor(value);
+      this.#colorBlue = value == null ? this.#colorBlue : clampColor(value);
     }
 
     get alpha() {
       return this.#colorAlpha;
     }
     set alpha(value) {
-      this.#colorAlpha = isNull(value) ? this.#colorAlpha : clamp(value);
+      this.#colorAlpha = value == null ? this.#colorAlpha : clamp(value);
     }
 
     get color() {
@@ -248,6 +253,7 @@ class GridPixel extends HTMLElement {
     this.classList.add("pixel");
     this.#colorLayers = [new GridPixel.Layer(r, g, b, a)];
     this.#currentLayerIndex = 0;
+    this.oncontextmenu = (e) => false;
 
     this.#updateColor();
   }
@@ -286,7 +292,7 @@ class GridPixel extends HTMLElement {
   }
   switchLayer(i) {
     console.assert(
-      !isNull(i) && i >= 0 && i < this.#colorLayers.length,
+      i != null && i >= 0 && i < this.#colorLayers.length,
       "Invalid layer index"
     );
 
@@ -309,7 +315,7 @@ class GridPixel extends HTMLElement {
     return this.currentLayer.red;
   }
   set red(value) {
-    if (isNull(value)) return;
+    if (value == null) return;
 
     this.currentLayer.red = value;
     this.#updateColor();
@@ -322,7 +328,7 @@ class GridPixel extends HTMLElement {
     return this.currentLayer.green;
   }
   set green(value) {
-    if (isNull(value)) return;
+    if (value == null) return;
 
     this.currentLayer.green = value;
     this.#updateColor();
@@ -335,7 +341,7 @@ class GridPixel extends HTMLElement {
     return this.currentLayer.blue;
   }
   set blue(value) {
-    if (isNull(value)) return;
+    if (value == null) return;
 
     this.currentLayer.blue = value;
     this.#updateColor();
@@ -348,7 +354,7 @@ class GridPixel extends HTMLElement {
     return this.currentLayer.alpha;
   }
   set alpha(value) {
-    if (isNull(value)) return;
+    if (value == null) return;
 
     this.currentLayer.alpha = value;
     this.#updateColor();
@@ -389,8 +395,9 @@ class GridPixel extends HTMLElement {
     const popped = this.#colorLayers.splice(this.#currentLayerIndex, 1)[0];
     this.#updateColor();
 
-    if (this.#currentLayerIndex === this.#colorLayers.length - 1)
+    if (this.#currentLayerIndex === this.#colorLayers.length - 1) {
       --this.#currentLayerIndex;
+    }
     return popped;
   }
   clearLayers() {
@@ -402,27 +409,33 @@ class GridPixel extends HTMLElement {
 
   traverseLayers(onTraverse, topDown = false, ...callbackArgs) {
     if (topDown) {
-      for (let i = this.#colorLayers.length - 1; i >= 0; --i)
+      for (let i = this.#colorLayers.length - 1; i >= 0; --i) {
         if (onTraverse(this.#colorLayers[i], ...callbackArgs) === true) return;
+      }
     } else {
-      for (let i = 0; i < this.#colorLayers.length; ++i)
+      for (let i = 0; i < this.#colorLayers.length; ++i) {
         if (onTraverse(this.#colorLayers[i], ...callbackArgs) === true) return;
+      }
     }
   }
 }
 
 class PointerState {
-  static LEFT_MOUSE = 0;
-  static MIDDLE_MOUSE = 1;
-  static RIGHT_MOUSE = 2;
-  static PEN_CONTACT = 0;
-  static PEN_BARREL = 2;
-  static PEN_ERASER = 5;
-  static TOUCH_CONTACT = 0;
+  static Button = {
+    LEFT_MOUSE: 0,
+    MIDDLE_MOUSE: 1,
+    RIGHT_MOUSE: 2,
+    PEN_CONTACT: 0,
+    PEN_BARREL: 2,
+    PEN_ERASER: 5,
+    TOUCH_CONTACT: 0,
+  };
 
-  static POINTER_TYPE_MOUSE = "mouse";
-  static POINTER_TYPE_PEN = "pen";
-  static POINTER_TYPE_TOUCH = "touch";
+  static PointerType = {
+    MOUSE: "mouse",
+    PEN: "pen",
+    TOUCH: "touch",
+  };
 
   #leftMouseFlag;
   #middleMouseFlag;
@@ -439,39 +452,39 @@ class PointerState {
 
   #updatePointerState(e, state) {
     switch (e.pointerType) {
-      case PointerState.POINTER_TYPE_MOUSE:
+      case PointerState.PointerType.MOUSE:
         switch (e.button) {
-          case PointerState.LEFT_MOUSE:
+          case PointerState.Button.LEFT_MOUSE:
             this.#leftMouseFlag = state;
             break;
 
-          case PointerState.MIDDLE_MOUSE:
+          case PointerState.Button.MIDDLE_MOUSE:
             this.#middleMouseFlag = state;
             break;
 
-          case PointerState.RIGHT_MOUSE:
+          case PointerState.Button.RIGHT_MOUSE:
             this.#rightMouseFlag = state;
             break;
         }
         break;
 
-      case PointerState.POINTER_TYPE_PEN:
+      case PointerState.PointerType.PEN:
         switch (e.button) {
-          case PointerState.PEN_CONTACT:
+          case PointerState.Button.PEN_CONTACT:
             this.#penContactFlag = state;
             break;
 
-          case PointerState.PEN_BARREL:
+          case PointerState.Button.PEN_BARREL:
             this.#penBarrelFlag = state;
             break;
 
-          case PointerState.PEN_ERASER:
+          case PointerState.Button.PEN_ERASER:
             this.#penEraserFlag = state;
             break;
         }
         break;
 
-      case PointerState.POINTER_TYPE_TOUCH:
+      case PointerState.PointerType.TOUCH:
         this.#touchFlag = state;
         break;
     }
@@ -635,10 +648,6 @@ intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
 
 // Helper functions
 
-function isNull(value) {
-  return value === null || value === undefined;
-}
-
 function clamp(value, min = 0, max = 1) {
   return Math.max(min, Math.min(max, value));
 }
@@ -698,13 +707,15 @@ function createGridCanvas() {
   canvas.traversePixels(onGridPixelInit);
   canvas.addEventListener("pointermove", onGridCanvasPointerMove);
 
-  if (!isNull(gridCanvas)) mainContainer.removeChild(gridCanvas);
+  if (gridCanvas != null) mainContainer.removeChild(gridCanvas);
 
   mainContainer.appendChild(canvas);
 
-  if (solidBackgroundSwitch.checked)
+  if (solidBackgroundSwitch.checked) {
     canvas.setBackgroundColor(...solidBackgroundColor, 1);
-  else canvas.traversePixels(onPixelPeriod, time);
+  } else {
+    canvas.traversePixels(onPixelPeriod, time);
+  }
 
   return canvas;
 }
@@ -730,20 +741,29 @@ function onPixelLayersInit(pixel) {
 }
 
 function onPixelPointerOver(e) {
+  if (
+    e.pointerType === PointerState.PointerType.TOUCH &&
+    selectedPixel != null
+  ) {
+    onPixelPointerOut.call(selectedPixel, e);
+  }
+
   const prevIndex = this.switchLayer(LAYER_INDEX_HIGHLIGHT);
   this.color = [...brushColor, 1];
   this.switchLayer(prevIndex);
 
   if (!pointerState.primaryPressed) return;
 
-  if (!isNull(selectedPixel)) {
+  if (selectedPixel != null) {
     const skippedPixels = gridCanvas.getPixelsInBetween(selectedPixel, this);
 
     skippedPixels.forEach((pixel) => {
       const prevIndex = pixel.switchLayer(LAYER_INDEX_BRUSH);
-      if (colorEquals(pixel.color, brushColor))
+      if (colorEquals(pixel.color, brushColor)) {
         pixel.color = [...brushColor, pixel.alpha + brushOpacity];
-      else pixel.color = [...brushColor, brushOpacity];
+      } else {
+        pixel.color = [...brushColor, brushOpacity];
+      }
       pixel.switchLayer(prevIndex);
     });
   }
@@ -760,9 +780,11 @@ async function onPixelPointerOut(e) {
   }
 
   let prevIndex = this.switchLayer(LAYER_INDEX_BRUSH);
-  if (colorEquals(this.color, brushColor))
+  if (colorEquals(this.color, brushColor)) {
     this.color = [...brushColor, this.alpha + brushOpacity];
-  else this.color = [...brushColor, brushOpacity];
+  } else {
+    this.color = [...brushColor, brushOpacity];
+  }
   this.switchLayer(prevIndex);
 
   await sleep(PIXEL_HIGHLIGHT_DURATION);
@@ -778,7 +800,11 @@ function onGridCanvasPointerMove(e) {
     e.pageY - window.scrollY
   );
 
-  if (pixel !== selectedPixel) onPixelPointerOver.call(pixel, e);
+  if (pixel instanceof GridPixel) {
+    if (pixel !== selectedPixel) {
+      onPixelPointerOver.call(pixel, e);
+    }
+  }
 }
 
 function onWindowClick(e) {
@@ -787,8 +813,11 @@ function onWindowClick(e) {
 
 function onDocumentVisibilityChange() {
   if (!solidBackgroundSwitch.checked) {
-    if (document.visibilityState === "hidden") clearInterval(intervalId);
-    else intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    if (document.visibilityState === "hidden") {
+      clearInterval(intervalId);
+    } else {
+      intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
+    }
   }
 }
 
@@ -808,7 +837,7 @@ function onCanvasResetButtonClick(e) {
 function onCanvasSaveButtonClick(e) {
   const svgString = gridCanvas.exportAsSVG();
   const blob = new Blob([svgString], { type: "image/svg+xml" });
-  saveAs(blob, "sketch.svg");
+  saveAs(blob, SVG_EXPORT_DEFAULT_FILENAME);
 }
 
 function onPlayPauseButtonClick(e) {
@@ -816,9 +845,11 @@ function onPlayPauseButtonClick(e) {
 }
 
 function onCursorVisibilitySwitchChange(e) {
-  if (cursorVisibilitySwitch.checked)
+  if (cursorVisibilitySwitch.checked) {
     gridCanvas.classList.remove("hide-cursor");
-  else gridCanvas.classList.add("hide-cursor");
+  } else {
+    gridCanvas.classList.add("hide-cursor");
+  }
 }
 
 function onSolidBackgroundSwitchChange(e) {
@@ -832,8 +863,9 @@ function onSolidBackgroundSwitchChange(e) {
 
 function onSolidBackgroundPickerChange(e) {
   solidBackgroundColor = hexStrToColor(this.value);
-  if (solidBackgroundSwitch.checked)
+  if (solidBackgroundSwitch.checked) {
     gridCanvas.setBackgroundColor(...solidBackgroundColor, 1);
+  }
 }
 
 function onModalboxResetButtonClick(e) {
@@ -873,10 +905,18 @@ function onPointerDown(e) {}
 function onPointerUp(e) {
   if (selectedPixel) {
     const prevIndex = selectedPixel.switchLayer(LAYER_INDEX_BRUSH);
-    if (colorEquals(selectedPixel.color, brushColor))
+    if (colorEquals(selectedPixel.color, brushColor)) {
       selectedPixel.color = [...brushColor, selectedPixel.alpha + brushOpacity];
-    else selectedPixel.color = [...brushColor, brushOpacity];
+    } else {
+      selectedPixel.color = [...brushColor, brushOpacity];
+    }
     selectedPixel.switchLayer(prevIndex);
+
+    if (e.pointerType === PointerState.PointerType.TOUCH) {
+      const prevIndex = selectedPixel.switchLayer(LAYER_INDEX_HIGHLIGHT);
+      selectedPixel.color = COLOR_NONE;
+      selectedPixel.switchLayer(prevIndex);
+    }
   }
   selectedPixel = undefined;
 }
@@ -887,7 +927,11 @@ function onGridPixelInit(pixel) {
     writable: false,
   });
 
-  pixel.addEventListener("pointerout", onPixelPointerOut);
+  pixel.addEventListener("pointerout", (e) => {
+    if (e.pointerType !== PointerState.PointerType.TOUCH) {
+      onPixelPointerOut.call(pixel, e);
+    }
+  });
   pixel.pointerState.addPrimaryStateListener(
     (e) => {
       selectedPixel = pixel;
