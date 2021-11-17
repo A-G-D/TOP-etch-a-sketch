@@ -617,8 +617,8 @@ rowCountInput.value = DEFAULT_CANVAS_ROW_COUNT;
 columnCountInput.value = DEFAULT_CANVAS_COLUMN_COUNT;
 brushColorPicker.value = colorToHexStr(...DEFAULT_BRUSH_COLOR);
 brushOpacityRange.value = DEFAULT_BRUSH_OPACITY;
-brushColorDisplay.value = brushColorPicker.value.toString();
-brushOpacityDisplay.value = brushOpacityRange.value.toString();
+brushColorDisplay.innerText = brushColorPicker.value.toString();
+brushOpacityDisplay.innerText = brushOpacityRange.value.toString();
 solidBackgroundPicker.value = colorToHexStr(...DEFAULT_SOLID_BACKGROUND);
 
 window.addEventListener("click", onWindowClick);
@@ -635,8 +635,8 @@ cursorVisibilitySwitch.addEventListener(
 solidBackgroundSwitch.addEventListener("change", onSolidBackgroundSwitchChange);
 solidBackgroundPicker.addEventListener("change", onSolidBackgroundPickerChange);
 modalboxResetButton.addEventListener("click", onModalboxResetButtonClick);
-brushColorPicker.addEventListener("change", onBrushColorPickerChange);
-brushOpacityRange.addEventListener("change", onBrushOpacityRangeChange);
+brushColorPicker.addEventListener("input", onBrushColorPickerChange);
+brushOpacityRange.addEventListener("input", onBrushOpacityRangeChange);
 rowCountInput.addEventListener("change", onRowCountInputChange);
 columnCountInput.addEventListener("change", onColumnCountInputChange);
 
@@ -876,12 +876,12 @@ function onModalboxResetButtonClick(e) {
 
 function onBrushColorPickerChange(e) {
   brushColor = hexStrToColor(this.value);
-  brushColorDisplay.value = this.value;
+  brushColorDisplay.innerText = this.value;
 }
 
 function onBrushOpacityRangeChange(e) {
   brushOpacity = parseFloat(this.value);
-  brushOpacityDisplay.value = this.value;
+  brushOpacityDisplay.innerText = this.value;
 }
 
 function onRowCountInputChange(e) {
