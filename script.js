@@ -7,9 +7,6 @@ const MIN_CANVAS_COLUMN_COUNT = 16;
 const MAX_CANVAS_ROW_COUNT = 128;
 const MAX_CANVAS_COLUMN_COUNT = 128;
 
-const GRID_CANVAS_WIDTH = 480;
-const GRID_CANVAS_HEIGHT = 480;
-
 const COLOR_NONE = [0x0, 0x0, 0x0, 0];
 const PIXEL_HIGHLIGHT_DURATION = 200;
 const PIXEL_HIGHLIGHT_COLOR = [0x0, 0x0, 0x0];
@@ -35,11 +32,8 @@ class GridCanvas extends HTMLElement {
   #columns;
   #pixels;
 
-  constructor(rows, columns, width, height, r, g, b, a) {
+  constructor(rows, columns, r, g, b, a) {
     super();
-
-    const cellWidth = width / columns;
-    const cellHeight = height / rows;
 
     this.#pixelMatrix = [];
     this.#rows = rows;
@@ -47,8 +41,8 @@ class GridCanvas extends HTMLElement {
     this.#pixels = rows * columns;
     this.style.touchAction = "none";
     this.style.display = "grid";
-    this.style.gridTemplateRows = `repeat(${rows}, ${cellHeight}px)`;
-    this.style.gridTemplateColumns = `repeat(${columns}, ${cellWidth}px)`;
+    this.style.gridTemplateRows = `repeat(${rows}, ${100 / rows}%)`;
+    this.style.gridTemplateColumns = `repeat(${columns}, ${100 / columns}%)`;
     this.oncontextmenu = (e) => false;
 
     for (let i = 0; i < rows; ++i) {
@@ -153,11 +147,43 @@ class GridCanvas extends HTMLElement {
     }
   }
 
-  setBackgroundColor(r, g, b, a) {
+  setLayerColor(layerIndex, r, g, b, a) {
     this.traversePixels((pixel) => {
-      const prevIndex = pixel.switchLayer(LAYER_INDEX_BACKGROUND);
+      const prevIndex = pixel.switchLayer(layerIndex);
       pixel.color = [r, g, b, a];
       pixel.switchLayer(prevIndex);
+    });
+  }
+
+  mapPixelsTo(canvas) {
+    const rows = canvas.rowCount;
+    const columns = canvas.columnCount;
+
+    const rowScale = rows / this.rowCount;
+    const columnScale = columns / this.columnCount;
+
+    canvas.traversePixels((pixel) => {
+      const i = pixel.rowIndex;
+      const j = pixel.columnIndex;
+
+      const refPixel = this.getPixel(
+        Math.floor(i / rowScale),
+        Math.floor(j / columnScale)
+      );
+
+      let prevIndex;
+      let layerIndex = 0;
+      refPixel.traverseLayers((layer) => {
+        try {
+          prevIndex = pixel.switchLayer(layerIndex);
+        } catch (error) {
+          pixel.pushLayer();
+        } finally {
+          pixel.color = layer.color;
+          pixel.switchLayer(prevIndex);
+        }
+        ++layerIndex;
+      });
     });
   }
 
@@ -165,12 +191,12 @@ class GridCanvas extends HTMLElement {
     this.traversePixels((pixel) => pixel.clearLayers());
   }
 
-  exportAsSVG() {
-    const dx = SVG_EXPORT_DIMENSIONS[0] / this.columnCount;
-    const dy = SVG_EXPORT_DIMENSIONS[1] / this.rowCount;
+  exportAsSVG(width, height) {
+    const dx = width / this.columnCount;
+    const dy = height / this.rowCount;
     const canvasSvg = SVG();
 
-    canvasSvg.size(...SVG_EXPORT_DIMENSIONS);
+    canvasSvg.size(width, height);
 
     this.traversePixels((pixel) => {
       const color = colorToHexStr(...pixel.computedColor);
@@ -298,14 +324,17 @@ class GridPixel extends HTMLElement {
     this.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a})`;
   }
 
+  get layerCount() {
+    return this.#colorLayers.length;
+  }
+
   get currentLayer() {
     return this.#colorLayers[this.#currentLayerIndex];
   }
   switchLayer(i) {
-    console.assert(
-      i != null && i >= 0 && i < this.#colorLayers.length,
-      "Invalid layer index"
-    );
+    if (i == null || i < 0 || i >= this.#colorLayers.length) {
+      throw new Error("Index out of range!");
+    }
 
     const prevIndex = this.#currentLayerIndex;
     this.#currentLayerIndex = i;
@@ -585,7 +614,7 @@ const mainContainer = document.querySelector(
   "#main-container .canvas-container"
 );
 const canvasClearButton = document.querySelector("#clear-button");
-const canvasResetButton = document.querySelector("#reset-button");
+const canvasResizeButton = document.querySelector("#resize-button");
 const canvasSaveButton = document.querySelector("#save-button");
 const playPauseButton = document.querySelector("#play-pause-button");
 const cursorVisibilitySwitch = document.querySelector(
@@ -604,7 +633,7 @@ const brushColorDisplay = document.querySelector("#brush-color-data");
 const rowCountInput = document.querySelector(".rows-input");
 const columnCountInput = document.querySelector(".columns-input");
 const modalForm = document.querySelector(".modal");
-const modalboxResetButton = document.querySelector(".modalbox .reset-button");
+const modalboxResizeButton = document.querySelector(".modalbox .resize-button");
 
 const pointerState = new PointerState(document);
 
@@ -636,7 +665,7 @@ window.addEventListener("click", onWindowClick);
 document.addEventListener("visibilitychange", onDocumentVisibilityChange);
 mainContainer.addEventListener("pointerleave", onMainContainerPointerLeave);
 canvasClearButton.addEventListener("click", onCanvasClearButtonClick);
-canvasResetButton.addEventListener("click", onCanvasResetButtonClick);
+canvasResizeButton.addEventListener("click", onCanvasResizeButtonClick);
 canvasSaveButton.addEventListener("click", onCanvasSaveButtonClick);
 playPauseButton.addEventListener("click", onPlayPauseButtonClick);
 cursorVisibilitySwitch.addEventListener(
@@ -645,7 +674,7 @@ cursorVisibilitySwitch.addEventListener(
 );
 solidBackgroundSwitch.addEventListener("change", onSolidBackgroundSwitchChange);
 solidBackgroundPicker.addEventListener("input", onSolidBackgroundPickerChange);
-modalboxResetButton.addEventListener("click", onModalboxResetButtonClick);
+modalboxResizeButton.addEventListener("click", onModalboxResizeButtonClick);
 brushColorPicker.addEventListener("input", onBrushColorPickerChange);
 brushOpacityRange.addEventListener("input", onBrushOpacityRangeChange);
 rowCountInput.addEventListener("change", onRowCountInputChange);
@@ -698,23 +727,13 @@ function sleep(ms) {
 
 function defaultPixelColor(i, j, rows, columns) {
   const pixels = rows * columns;
-  return [
-    (0xff * (i * columns + j)) / pixels,
-    (0xff * (j * rows + i)) / pixels,
-    (0xff * (i * columns)) / pixels,
-    1,
-  ];
+  return [0x0, 0x0, 0x0, 1];
 }
 
 function createGridCanvas() {
   const rows = rowCountInput.value;
   const columns = columnCountInput.value;
-  const canvas = new GridCanvas(
-    rows,
-    columns,
-    GRID_CANVAS_WIDTH,
-    GRID_CANVAS_HEIGHT
-  );
+  const canvas = new GridCanvas(rows, columns);
   canvas.traversePixels(onGridPixelInit);
   canvas.addEventListener("pointermove", onGridCanvasPointerMove);
 
@@ -722,10 +741,14 @@ function createGridCanvas() {
 
   mainContainer.appendChild(canvas);
 
-  if (solidBackgroundSwitch.checked) {
-    canvas.setBackgroundColor(...solidBackgroundColor, 1);
+  if (gridCanvas == null) {
+    if (solidBackgroundSwitch.checked) {
+      canvas.setLayerColor(LAYER_INDEX_BACKGROUND, ...solidBackgroundColor, 1);
+    } else {
+      canvas.traversePixels(onPixelPeriod, time);
+    }
   } else {
-    canvas.traversePixels(onPixelPeriod, time);
+    gridCanvas.mapPixelsTo(canvas);
   }
 
   return canvas;
@@ -845,12 +868,12 @@ function onCanvasClearButtonClick(e) {
   gridCanvas.traversePixels((pixel) => onPixelLayersInit(pixel));
 }
 
-function onCanvasResetButtonClick(e) {
+function onCanvasResizeButtonClick(e) {
   modalForm.style.display = "flex";
 }
 
 function onCanvasSaveButtonClick(e) {
-  const svgString = gridCanvas.exportAsSVG();
+  const svgString = gridCanvas.exportAsSVG(...SVG_EXPORT_DIMENSIONS);
   const blob = new Blob([svgString], { type: "image/svg+xml" });
   saveAs(blob, SVG_EXPORT_DEFAULT_FILENAME);
 }
@@ -870,7 +893,11 @@ function onCursorVisibilitySwitchChange(e) {
 function onSolidBackgroundSwitchChange(e) {
   if (solidBackgroundSwitch.checked) {
     clearInterval(intervalId);
-    gridCanvas.setBackgroundColor(...solidBackgroundColor, 1);
+    gridCanvas.setLayerColor(
+      LAYER_INDEX_BACKGROUND,
+      ...solidBackgroundColor,
+      1
+    );
   } else {
     intervalId = initPeriodicActions(CANVAS_SHADER_FPS);
   }
@@ -879,11 +906,15 @@ function onSolidBackgroundSwitchChange(e) {
 function onSolidBackgroundPickerChange(e) {
   solidBackgroundColor = hexStrToColor(this.value);
   if (solidBackgroundSwitch.checked) {
-    gridCanvas.setBackgroundColor(...solidBackgroundColor, 1);
+    gridCanvas.setLayerColor(
+      LAYER_INDEX_BACKGROUND,
+      ...solidBackgroundColor,
+      1
+    );
   }
 }
 
-function onModalboxResetButtonClick(e) {
+function onModalboxResizeButtonClick(e) {
   modalForm.style.display = "none";
   gridCanvas = createGridCanvas();
   onCursorVisibilitySwitchChange();
@@ -923,7 +954,10 @@ function onPointerUp(e) {
     if (colorEquals(selectedPixel.color, brushColor)) {
       selectedPixel.color = [...brushColor, selectedPixel.alpha + brushOpacity];
     } else {
-      selectedPixel.color = [...brushColor, brushOpacity];
+      selectedPixel.currentLayer.merge(
+        new GridPixel.Layer(...brushColor, brushOpacity)
+      );
+      selectedPixel.updateColor();
     }
     selectedPixel.switchLayer(prevIndex);
 
