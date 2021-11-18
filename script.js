@@ -244,7 +244,26 @@ class GridPixel extends HTMLElement {
     set color(rgba) {
       this.setColor(...rgba);
     }
+
+    merge(overlayLayer) {
+      const overlayOpacity = 1 - overlayLayer.alpha;
+      this.#colorAlpha = overlayLayer.alpha + this.alpha * overlayOpacity;
+      this.#colorRed =
+        (overlayLayer.red * overlayLayer.alpha +
+          this.red * this.alpha * overlayOpacity) /
+        this.alpha;
+      this.#colorGreen =
+        (overlayLayer.green * overlayLayer.alpha +
+          this.green * this.alpha * overlayOpacity) /
+        this.alpha;
+      this.#colorBlue =
+        (overlayLayer.blue * overlayLayer.alpha +
+          this.blue * this.alpha * overlayOpacity) /
+        this.alpha;
+    }
   };
+
+  static #layerMerger = new GridPixel.Layer();
 
   constructor(r = 0xff, g = 0xff, b = 0xff, a = 1) {
     super();
@@ -255,29 +274,21 @@ class GridPixel extends HTMLElement {
     this.#currentLayerIndex = 0;
     this.oncontextmenu = (e) => false;
 
-    this.#updateColor();
+    this.updateColor();
   }
 
-  #updateColor() {
-    let r = this.#colorLayers[0].red;
-    let g = this.#colorLayers[0].green;
-    let b = this.#colorLayers[0].blue;
-    let a = this.#colorLayers[0].alpha;
+  updateColor() {
+    const merger = GridPixel.#layerMerger;
+    merger.color = this.#colorLayers[0].color;
 
-    for (let i = 0; i < this.#colorLayers.length; ++i) {
-      const layer = this.#colorLayers[i];
-
-      r += (layer.red - r) * layer.alpha;
-      g += (layer.green - g) * layer.alpha;
-      b += (layer.blue - b) * layer.alpha;
-
-      a = Math.max(a, layer.alpha);
+    for (let i = 1; i < this.#colorLayers.length; ++i) {
+      merger.merge(this.#colorLayers[i]);
     }
 
-    r = clampColor(r);
-    g = clampColor(g);
-    b = clampColor(b);
-    a = clampColor(a);
+    const r = clampColor(merger.red);
+    const g = clampColor(merger.green);
+    const b = clampColor(merger.blue);
+    const a = clampColor(merger.alpha);
 
     this.#colorRed = r;
     this.#colorGreen = g;
@@ -318,7 +329,7 @@ class GridPixel extends HTMLElement {
     if (value == null) return;
 
     this.currentLayer.red = value;
-    this.#updateColor();
+    this.updateColor();
   }
 
   get computedGreen() {
@@ -331,7 +342,7 @@ class GridPixel extends HTMLElement {
     if (value == null) return;
 
     this.currentLayer.green = value;
-    this.#updateColor();
+    this.updateColor();
   }
 
   get computedBlue() {
@@ -344,7 +355,7 @@ class GridPixel extends HTMLElement {
     if (value == null) return;
 
     this.currentLayer.blue = value;
-    this.#updateColor();
+    this.updateColor();
   }
 
   get computedAlpha() {
@@ -357,7 +368,7 @@ class GridPixel extends HTMLElement {
     if (value == null) return;
 
     this.currentLayer.alpha = value;
-    this.#updateColor();
+    this.updateColor();
   }
 
   get computedColor() {
@@ -373,12 +384,12 @@ class GridPixel extends HTMLElement {
   }
   set color(rgba) {
     this.currentLayer.color = rgba;
-    this.#updateColor();
+    this.updateColor();
   }
 
   setColor(r, g, b, a) {
     this.currentLayer.setColor(r, g, b, a);
-    this.#updateColor();
+    this.updateColor();
   }
 
   pushLayer(setAsCurrent = true) {
@@ -393,7 +404,7 @@ class GridPixel extends HTMLElement {
     if (this.#currentLayerIndex === 0) return;
 
     const popped = this.#colorLayers.splice(this.#currentLayerIndex, 1)[0];
-    this.#updateColor();
+    this.updateColor();
 
     if (this.#currentLayerIndex === this.#colorLayers.length - 1) {
       --this.#currentLayerIndex;
@@ -404,7 +415,7 @@ class GridPixel extends HTMLElement {
     if (this.#colorLayers.length < 1) return;
     this.#colorLayers.splice(1);
     this.#currentLayerIndex = 0;
-    this.#updateColor();
+    this.updateColor();
   }
 
   traverseLayers(onTraverse, topDown = false, ...callbackArgs) {
@@ -633,7 +644,7 @@ cursorVisibilitySwitch.addEventListener(
   onCursorVisibilitySwitchChange
 );
 solidBackgroundSwitch.addEventListener("change", onSolidBackgroundSwitchChange);
-solidBackgroundPicker.addEventListener("change", onSolidBackgroundPickerChange);
+solidBackgroundPicker.addEventListener("input", onSolidBackgroundPickerChange);
 modalboxResetButton.addEventListener("click", onModalboxResetButtonClick);
 brushColorPicker.addEventListener("input", onBrushColorPickerChange);
 brushOpacityRange.addEventListener("input", onBrushOpacityRangeChange);
@@ -762,7 +773,10 @@ function onPixelPointerOver(e) {
       if (colorEquals(pixel.color, brushColor)) {
         pixel.color = [...brushColor, pixel.alpha + brushOpacity];
       } else {
-        pixel.color = [...brushColor, brushOpacity];
+        pixel.currentLayer.merge(
+          new GridPixel.Layer(...brushColor, brushOpacity)
+        );
+        pixel.updateColor();
       }
       pixel.switchLayer(prevIndex);
     });
@@ -783,7 +797,8 @@ async function onPixelPointerOut(e) {
   if (colorEquals(this.color, brushColor)) {
     this.color = [...brushColor, this.alpha + brushOpacity];
   } else {
-    this.color = [...brushColor, brushOpacity];
+    this.currentLayer.merge(new GridPixel.Layer(...brushColor, brushOpacity));
+    this.updateColor();
   }
   this.switchLayer(prevIndex);
 
