@@ -633,7 +633,7 @@ cursorVisibilitySwitch.addEventListener(
   onCursorVisibilitySwitchChange
 );
 solidBackgroundSwitch.addEventListener("change", onSolidBackgroundSwitchChange);
-solidBackgroundPicker.addEventListener("change", onSolidBackgroundPickerChange);
+solidBackgroundPicker.addEventListener("input", onSolidBackgroundPickerChange);
 modalboxResetButton.addEventListener("click", onModalboxResetButtonClick);
 brushColorPicker.addEventListener("input", onBrushColorPickerChange);
 brushOpacityRange.addEventListener("input", onBrushOpacityRangeChange);
