@@ -773,14 +773,10 @@ function onPixelPointerOver(e) {
       if (colorEquals(pixel.color, brushColor)) {
         pixel.color = [...brushColor, pixel.alpha + brushOpacity];
       } else {
-        // const merger = new GridPixel.Layer(...pixel.color);
-        // merger.merge(new GridPixel.Layer(...brushColor, brushOpacity));
-        // pixel.color = merger.color;
         pixel.currentLayer.merge(
           new GridPixel.Layer(...brushColor, brushOpacity)
         );
         pixel.updateColor();
-        // pixel.color = [...brushColor, brushOpacity];
       }
       pixel.switchLayer(prevIndex);
     });
@@ -801,15 +797,8 @@ async function onPixelPointerOut(e) {
   if (colorEquals(this.color, brushColor)) {
     this.color = [...brushColor, this.alpha + brushOpacity];
   } else {
-    // const merger = new GridPixel.Layer(...this.color);
-    // merger.merge(new GridPixel.Layer(...brushColor, brushOpacity));
-    // this.color = merger.color;
-    console.log("before: ", this.color);
     this.currentLayer.merge(new GridPixel.Layer(...brushColor, brushOpacity));
     this.updateColor();
-    console.log("after: ", this.color);
-    console.log("computed: ", this.computedColor);
-    // this.color = [...brushColor, brushOpacity];
   }
   this.switchLayer(prevIndex);
 
